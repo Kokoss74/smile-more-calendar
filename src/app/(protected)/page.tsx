@@ -1,16 +1,7 @@
 'use client';
 
-import { useSessionStore } from "@/store/sessionStore";
+import Calendar from '@/components/calendar/Calendar';
 
-export default function Home() {
-  const { user, profile } = useSessionStore();
-
-  return (
-    <div>
-      <p>
-        Welcome back, {user?.email} (Role: {profile?.role})
-      </p>
-      {/* Calendar component will go here */}
-    </div>
-  );
+export default function CalendarPage() {
+  return <Calendar />;
 }
