@@ -33,3 +33,6 @@ export const CALENDAR_DAY_HEADER_FORMAT = {
   day: 'numeric',
   omitCommas: true
 } as const;
+
+export const DEFAULT_EVENT_BACKGROUND_COLOR = '#3788d8';
+export const DEFAULT_EVENT_BORDER_COLOR = '#2a6fb5';

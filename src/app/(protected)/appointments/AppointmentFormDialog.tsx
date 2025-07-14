@@ -98,19 +98,36 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
         };
         reset(defaultValues);
       } else if (defaultDateTime) {
-        const defaultValues: Partial<AppointmentFormData> = {
+        reset({
           start_ts: defaultDateTime.startStr,
           end_ts: defaultDateTime.endStr,
           status: 'scheduled',
-          private: profile?.role === 'admin', // Default to private for admin
-          clinic_id: profile?.clinic_id || undefined,
-        };
-        reset(defaultValues);
+          private: profile?.role === 'admin',
+          clinic_id: profile?.clinic_id || '',
+          short_label: '',
+          patient_id: null,
+          procedure_id: null,
+          cost: undefined,
+          description: '',
+          tooth_num: ''
+        });
       } else {
-        reset({});
+        reset({
+          short_label: '',
+          clinic_id: '',
+          patient_id: null,
+          procedure_id: null,
+          cost: undefined,
+          description: '',
+          status: 'scheduled',
+          private: true,
+          start_ts: '',
+          end_ts: '',
+          tooth_num: ''
+        });
       }
     }
-  }, [appointment, defaultDateTime, isEditMode, open, reset, profile]);
+  }, [open, isEditMode, appointment, defaultDateTime, reset, profile]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>

@@ -1,22 +1,49 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { EventInput } from '@fullcalendar/core';
+import { EventInput, EventClickArg, DateSelectArg } from '@fullcalendar/core';
+import { AppointmentWithRelations } from '@/types';
+import AppointmentFormDialog from '@/app/(protected)/appointments/AppointmentFormDialog';
 import { useAppointments } from '@/hooks/useAppointments';
 import { 
   CALENDAR_BUSINESS_HOURS, 
   CALENDAR_DAY_HEADER_FORMAT, 
   CALENDAR_NON_WORKING_DAYS, 
-  CALENDAR_SLOT_LABEL_FORMAT 
+  CALENDAR_SLOT_LABEL_FORMAT,
+  DEFAULT_EVENT_BACKGROUND_COLOR,
+  DEFAULT_EVENT_BORDER_COLOR
 } from '@/config/constants';
 
 const Calendar: React.FC = () => {
   const { data: appointments, isLoading, isError, error } = useAppointments();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ startStr: string, endStr: string } | undefined>(undefined);
+
+  const handleDateSelect = (selectInfo: DateSelectArg) => {
+    selectInfo.view.calendar.unselect();
+    setSelectedSlot({ startStr: selectInfo.startStr, endStr: selectInfo.endStr });
+    setSelectedAppointment(null);
+    setDialogOpen(true);
+  };
+
+  const handleEventClick = (clickInfo: EventClickArg) => {
+    const appointment = clickInfo.event.extendedProps as AppointmentWithRelations;
+    setSelectedAppointment(appointment);
+    setSelectedSlot(undefined);
+    setDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedAppointment(null);
+    setSelectedSlot(undefined);
+  };
 
   const events = useMemo(() => {
     if (!appointments) return CALENDAR_NON_WORKING_DAYS;
@@ -26,8 +53,8 @@ const Calendar: React.FC = () => {
       title: app.short_label,
       start: app.start_ts,
       end: app.end_ts,
-      backgroundColor: app.clinics?.color_hex || '#3788d8',
-      borderColor: app.procedures_catalog?.color_hex || '#2a6fb5',
+      backgroundColor: app.clinics?.color_hex || DEFAULT_EVENT_BACKGROUND_COLOR,
+      borderColor: app.procedures_catalog?.color_hex || DEFAULT_EVENT_BORDER_COLOR,
       classNames: ['event-with-border'],
       extendedProps: {
         ...app
@@ -107,9 +134,14 @@ const Calendar: React.FC = () => {
         events={events}
         selectConstraint="businessHours"
         eventConstraint="businessHours"
-        // select={handleDateSelect}
-        // eventClick={handleEventClick}
-        // eventsSet={handleEvents}
+        select={handleDateSelect}
+        eventClick={handleEventClick}
+      />
+      <AppointmentFormDialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        appointment={selectedAppointment}
+        defaultDateTime={selectedSlot}
       />
     </Box>
   );
