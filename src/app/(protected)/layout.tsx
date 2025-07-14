@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import SessionProvider from "@/components/providers/SessionProvider";
 import { Profile } from "@/store/sessionStore";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 export default async function ProtectedLayout({
   children,
@@ -38,9 +39,11 @@ export default async function ProtectedLayout({
 
   return (
     <SessionProvider user={user} profile={userProfile}>
-      <AppShell>
-        {children}
-      </AppShell>
+      <QueryProvider>
+        <AppShell>
+          {children}
+        </AppShell>
+      </QueryProvider>
     </SessionProvider>
   );
 }
