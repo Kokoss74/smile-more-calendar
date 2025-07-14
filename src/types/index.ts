@@ -53,3 +53,21 @@ export const patientSchema = z.object({
 });
 
 export type PatientFormData = z.infer<typeof patientSchema>;
+
+export interface AppointmentTemplate {
+  id: string;
+  name: string;
+  default_duration_min: number;
+  default_procedure_id: string | null;
+  default_cost: number | null;
+  created_by: string; // user_id
+}
+
+export const appointmentTemplateSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  default_duration_min: z.coerce.number().int().positive({ message: "Duration must be a positive number." }),
+  default_procedure_id: z.string().uuid().optional().nullable(),
+  default_cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
+});
+
+export type AppointmentTemplateFormData = z.infer<typeof appointmentTemplateSchema>;
