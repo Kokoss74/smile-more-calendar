@@ -29,7 +29,7 @@ export default async function Home() {
   const userRole = profile?.role || "guest";
 
   return (
-    <AppShell user={user} userRole={userRole}>
+    <AppShell>
       <p>
         Welcome back, {user.email} (Role: {userRole})
       </p>

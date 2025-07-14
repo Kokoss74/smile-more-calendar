@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
+import SessionProvider from "@/components/providers/SessionProvider";
+import { Profile } from "@/store/sessionStore";
 
 export default async function ProtectedLayout({
   children,
@@ -30,11 +32,15 @@ export default async function ProtectedLayout({
     // For now, we'll treat them as a guest, which will limit their access.
   }
 
-  const userRole = (profile?.role || "guest") as 'admin' | 'clinic_staff' | 'guest';
+  const userProfile: Profile = {
+    role: (profile?.role || "guest") as 'admin' | 'clinic_staff' | 'guest',
+  };
 
   return (
-    <AppShell user={user} userRole={userRole}>
-      {children}
-    </AppShell>
+    <SessionProvider user={user} profile={userProfile}>
+      <AppShell>
+        {children}
+      </AppShell>
+    </SessionProvider>
   );
 }

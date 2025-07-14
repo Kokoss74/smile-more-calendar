@@ -16,29 +16,45 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import AuthButton from '@/components/auth/AuthButton';
-import type { User } from '@supabase/supabase-js';
 import { DRAWER_WIDTH, NAV_ITEMS } from '@/config/navigation';
+import { useSessionStore } from '@/store/sessionStore';
+import { CircularProgress } from '@mui/material';
 
-// Define the props for the AppShell component
+// AppShell no longer needs props for user data, it gets them from the store.
 interface AppShellProps {
-  user: User;
-  userRole: 'admin' | 'clinic_staff' | 'guest';
   children: React.ReactNode;
 }
 
-
-export default function AppShell({ user, userRole, children }: AppShellProps) {
+export default function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { user, profile, isInitialized } = useSessionStore();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  // While the session is initializing, show a loader.
+  // This prevents a flash of an empty/incorrect UI state.
+  if (!isInitialized || !user || !profile) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   const drawer = (
     <div>
       <Toolbar />
       <List>
-        {(NAV_ITEMS[userRole] || []).map((item) => (
+        {(NAV_ITEMS[profile.role] || []).map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton component="a" href={item.path}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -72,7 +88,8 @@ export default function AppShell({ user, userRole, children }: AppShellProps) {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Smile More Calendar
           </Typography>
-          <AuthButton user={user} />
+          {/* AuthButton now gets user data from the Zustand store */}
+          <AuthButton />
         </Toolbar>
       </AppBar>
       <Box

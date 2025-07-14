@@ -2,12 +2,13 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { Button, Box, Typography } from '@mui/material'
-import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import { useSessionStore } from '@/store/sessionStore'
 
-export default function AuthButton({ user }: { user: User | null }) {
+export default function AuthButton() {
   const router = useRouter()
   const supabase = createClient()
+  const { user, clearSession } = useSessionStore()
 
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
@@ -20,6 +21,7 @@ export default function AuthButton({ user }: { user: User | null }) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    clearSession() // Clear the session in the Zustand store
     router.refresh()
   }
 
