@@ -10,8 +10,23 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    return redirect("/login");
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  // TODO: Handle case where profile is not found (e.g., first-time login)
+  // For now, we'll just log it and proceed.
+  if (!profile) {
+    console.error("User profile not found for user_id:", user.id);
+    // redirect("/create-profile"); // This will be the next step
+  }
+
+  const userRole = profile?.role || "guest";
 
   return (
     <div>
@@ -20,7 +35,9 @@ export default async function Home() {
         <AuthButton user={user} />
       </header>
       <main>
-        <p>Welcome back, {user.email}</p>
+        <p>
+          Welcome back, {user.email} (Role: {userRole})
+        </p>
         {/* Calendar component will go here */}
       </main>
     </div>
