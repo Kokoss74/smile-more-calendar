@@ -73,7 +73,7 @@ export const appointmentTemplateSchema = z.object({
 export type AppointmentTemplateFormData = z.infer<typeof appointmentTemplateSchema>;
 
 export interface WaTemplate {
-  id: string;
+  id: number;
   code: string;
   body_ru: string;
   body_il: string;
@@ -81,9 +81,34 @@ export interface WaTemplate {
 }
 
 export const waTemplateSchema = z.object({
-  code: z.string().min(3, { message: "Code must be at least 3 characters." }).regex(/^[a-z0-9_]+$/, { message: "Code can only contain lowercase letters, numbers, and underscores." }),
-  body_ru: z.string().min(10, { message: "Russian template must be at least 10 characters." }),
-  body_il: z.string().min(10, { message: "Hebrew template must be at least 10 characters." }),
+  code: z.string().min(1, "Code is required"),
+  body_ru: z.string().min(1, "Russian body is required"),
+  body_il: z.string().min(1, "Hebrew body is required"),
 });
 
 export type WaTemplateFormData = z.infer<typeof waTemplateSchema>;
+
+export interface Appointment {
+  id: number;
+  clinic_id: number;
+  start_ts: string;
+  end_ts: string;
+  patient_id?: number;
+  short_label: string;
+  status: 'scheduled' | 'completed' | 'canceled';
+  procedure_id?: number;
+  cost?: number;
+  tooth_num?: string;
+  description?: string;
+  private: boolean;
+  created_by: string;
+  updated_by: string;
+  canceled_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppointmentWithRelations extends Appointment {
+  clinics: { color_hex: string } | null;
+  procedures_catalog: { color_hex: string } | null;
+}

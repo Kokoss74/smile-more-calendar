@@ -6,29 +6,14 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Box } from '@mui/material';
-import { EventInput } from '@fullcalendar/core';
+import { 
+  CALENDAR_BUSINESS_HOURS, 
+  CALENDAR_DAY_HEADER_FORMAT, 
+  CALENDAR_NON_WORKING_DAYS, 
+  CALENDAR_SLOT_LABEL_FORMAT 
+} from '@/config/constants';
 
 const Calendar: React.FC = () => {
-  // Business hours (Sunday to Friday, 8am to 9pm)
-  const businessHours = {
-    daysOfWeek: [0, 1, 2, 3, 4, 5], // Sunday - Friday
-    startTime: '08:00',
-    endTime: '21:00',
-  };
-
-  // Mark Saturday as a non-working day
-  const nonWorkingDays: EventInput[] = [
-    {
-      start: '2024-01-06T00:00:00', // A sample Saturday
-      end: '2024-01-06T23:59:59',
-      display: 'background',
-      color: '#f5f5f5',
-      allDay: true,
-      daysOfWeek: [6] // Saturday
-    }
-  ];
-
-
   return (
     <Box sx={{
       height: 'calc(100vh - 64px - 48px)', // Adjust based on AppBar and padding
@@ -69,24 +54,15 @@ const Calendar: React.FC = () => {
         selectMirror={true}
         dayMaxEvents={true}
         weekends={true}
-        slotMinTime="08:00:00"
-        slotMaxTime="21:00:00"
+        slotMinTime={CALENDAR_BUSINESS_HOURS.startTime}
+        slotMaxTime={CALENDAR_BUSINESS_HOURS.endTime}
         height="100%"
-        locale='ru' // For Russian month/day names
+        locale='ru'
         firstDay={0} // Sunday
-        slotLabelFormat={{
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }}
-        dayHeaderFormat={{
-          weekday: 'short',
-          day: 'numeric',
-          // month: 'numeric',
-          omitCommas: true
-        }}
-        businessHours={businessHours}
-        events={nonWorkingDays}
+        slotLabelFormat={CALENDAR_SLOT_LABEL_FORMAT}
+        dayHeaderFormat={CALENDAR_DAY_HEADER_FORMAT}
+        businessHours={CALENDAR_BUSINESS_HOURS}
+        events={CALENDAR_NON_WORKING_DAYS}
         selectConstraint="businessHours"
         eventConstraint="businessHours"
         // select={handleDateSelect}
