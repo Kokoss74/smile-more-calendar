@@ -11,13 +11,22 @@ import {
   ListItemText,
   Button,
   Snackbar,
+  IconButton,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
-import { useClinics, useAddClinic } from '@/hooks/useClinics';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useClinics, useAddClinic, useDeleteClinic } from '@/hooks/useClinics';
 import ClinicFormDialog from './ClinicFormDialog';
-import { ClinicFormData } from '@/types';
+import { Clinic, ClinicFormData } from '@/types';
 
 export default function ClinicsPage() {
-  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isFormOpen, setFormOpen] = useState(false);
+  const [isConfirmOpen, setConfirmOpen] = useState(false);
+  const [clinicToDelete, setClinicToDelete] = useState<Clinic | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -26,17 +35,39 @@ export default function ClinicsPage() {
 
   const { data: clinics, isLoading, isError, error } = useClinics();
   const addClinicMutation = useAddClinic();
+  const deleteClinicMutation = useDeleteClinic();
 
   const handleAddClinic = (data: ClinicFormData) => {
     addClinicMutation.mutate(data, {
       onSuccess: () => {
-        setDialogOpen(false);
+        setFormOpen(false);
         setSnackbar({ open: true, message: 'Clinic added successfully!', severity: 'success' });
       },
       onError: (error) => {
         setSnackbar({ open: true, message: `Error: ${error.message}`, severity: 'error' });
       },
     });
+  };
+
+  const openDeleteConfirm = (clinic: Clinic) => {
+    setClinicToDelete(clinic);
+    setConfirmOpen(true);
+  };
+
+  const handleDeleteClinic = () => {
+    if (clinicToDelete) {
+      deleteClinicMutation.mutate(clinicToDelete.id, {
+        onSuccess: () => {
+          setConfirmOpen(false);
+          setClinicToDelete(null);
+          setSnackbar({ open: true, message: 'Clinic deleted successfully!', severity: 'success' });
+        },
+        onError: (error) => {
+          setConfirmOpen(false);
+          setSnackbar({ open: true, message: `Error: ${error.message}`, severity: 'error' });
+        },
+      });
+    }
   };
 
   if (isLoading) {
@@ -53,13 +84,23 @@ export default function ClinicsPage() {
         <Typography variant="h4" gutterBottom>
           Clinics Management
         </Typography>
-        <Button variant="contained" onClick={() => setDialogOpen(true)}>
+        <Button variant="contained" onClick={() => setFormOpen(true)}>
           Add Clinic
         </Button>
       </Box>
       <List>
         {clinics?.map((clinic) => (
-          <ListItem key={clinic.id} sx={{ border: '1px solid #ddd', mb: 1, borderRadius: '4px' }}>
+          <ListItem 
+            key={clinic.id} 
+            sx={{ border: '1px solid #ddd', mb: 1, borderRadius: '4px' }}
+            secondaryAction={
+              clinic.name !== 'Smile More Clinic' && (
+                <IconButton edge="end" aria-label="delete" onClick={() => openDeleteConfirm(clinic)}>
+                  <DeleteIcon />
+                </IconButton>
+              )
+            }
+          >
             <ListItemText 
               primary={clinic.name} 
               secondary={
@@ -73,10 +114,27 @@ export default function ClinicsPage() {
         ))}
       </List>
       <ClinicFormDialog
-        open={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
+        open={isFormOpen}
+        onClose={() => setFormOpen(false)}
         onSubmit={handleAddClinic}
       />
+      <Dialog
+        open={isConfirmOpen}
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure want to delete the clinic &quot;{clinicToDelete?.name}&quot;? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteClinic} color="error" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

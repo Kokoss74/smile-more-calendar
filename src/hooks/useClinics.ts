@@ -41,3 +41,22 @@ export const useAddClinic = () => {
     },
   });
 };
+
+const deleteClinic = async (id: string) => {
+  const { error } = await supabase.from('clinics').delete().eq('id', id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+export const useDeleteClinic = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteClinic,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clinics'] });
+    },
+  });
+};
