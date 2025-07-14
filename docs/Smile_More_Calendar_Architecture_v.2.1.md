@@ -89,45 +89,86 @@ erDiagram
 
 ### 4.1 Вспомогательные функции
 
-```sql
-create function public.current_role() returns text
-  language sql stable as $$
-    select role from public.profiles where user_id = auth.uid()
-  $$;
+*Функции были обновлены для повышения безопасности путем установки `SECURITY DEFINER` и пустого `search_path`.*
 
-create function public.current_clinic() returns uuid
-  language sql stable as $$
-    select clinic_id from public.profiles where user_id = auth.uid()
-  $$;
+```sql
+CREATE OR REPLACE FUNCTION public.current_role() 
+RETURNS text
+LANGUAGE sql 
+STABLE 
+SECURITY DEFINER 
+SET search_path = ''
+AS $$
+  SELECT role FROM public.profiles WHERE user_id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_clinic() 
+RETURNS uuid
+LANGUAGE sql 
+STABLE 
+SECURITY DEFINER 
+SET search_path = ''
+AS $$
+  SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()
+$$;
 ```
 
 ### 4.2 Политики безопасности (RLS)
 
+*Политики были обновлены для большей явности и безопасности. Вместо вызова вспомогательных функций используется прямой подзапрос к таблице `profiles`.*
+
 ```sql
+-- profiles -----------------------------------------------------------
+alter table public.profiles enable row level security;
+create policy "Users can read own profile" on public.profiles for select using ( user_id = auth.uid() );
+create policy "Users can insert own profile" on public.profiles for insert with check ( user_id = auth.uid() );
+create policy "Users can update own profile" on public.profiles for update using ( user_id = auth.uid() );
+
 -- clinics ------------------------------------------------------------
 alter table public.clinics enable row level security;
-create policy "Allow admin full access to clinics" on public.clinics for all using ( current_role() = 'admin' );
-create policy "Allow staff to read their own clinic" on public.clinics for select using ( id = current_clinic() );
+create policy "Allow admin full access" on public.clinics for all using ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'admin') 
+);
+create policy "Allow staff to read their own clinic" on public.clinics for select using ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and clinic_id = clinics.id) 
+);
 
 -- patients -----------------------------------------------------------
 alter table public.patients enable row level security;
-create policy "Allow admin full access to patients" on public.patients for all using ( current_role() = 'admin' );
-create policy "Allow staff to read/create patients for their clinic" on public.patients for select, insert with check ( current_role() = 'clinic_staff' and owner_id is null );
+create policy "Allow admin full access" on public.patients for all using ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'admin') 
+);
+create policy "Allow staff to read/create patients for their clinic" on public.patients for select, insert with check ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff') and owner_id is null 
+);
 
 -- appointments -------------------------------------------------------
 alter table public.appointments enable row level security;
-create policy "Allow admin full access to appointments" on public.appointments for all using ( current_role() = 'admin' );
-create policy "Allow staff to read appointments of their clinic" on public.appointments for select using ( current_role() = 'clinic_staff' and clinic_id = current_clinic() );
-create policy "Allow staff to insert appointments for their clinic" on public.appointments for insert with check ( current_role() = 'clinic_staff' and clinic_id = current_clinic() and private = false and patient_id is null );
-create policy "Allow staff to update status to canceled" on public.appointments for update using ( current_role() = 'clinic_staff' and clinic_id = current_clinic() ) with check ( status = 'canceled' );
-create policy "Deny staff from deleting appointments" on public.appointments for delete using ( false );
+create policy "Allow admin full access" on public.appointments for all using ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'admin') 
+);
+create policy "Allow staff to read appointments of their clinic" on public.appointments for select using ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
+);
+create policy "Allow staff to insert appointments for their clinic" on public.appointments for insert with check ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
+  and private = false and patient_id is null 
+);
+create policy "Allow staff to update status to canceled" on public.appointments for update using ( 
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
+) with check ( status = 'canceled' );
 ```
 
 ### 4.3 Триггер для проверки пересечений
 
+*Функция триггера была обновлена для повышения безопасности путем установки пустого `search_path`.*
+
 ```sql
 CREATE OR REPLACE FUNCTION public.check_appointment_overlap()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM public.appointments
@@ -142,7 +183,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_check_appointment_overlap
 BEFORE INSERT OR UPDATE ON public.appointments
@@ -221,7 +262,19 @@ FOR EACH ROW EXECUTE FUNCTION check_appointment_overlap();
 ## 10. CI / CD и начальная настройка
 
 1.  **CI/CD:** GitHub → Vercel Preview (per PR) → Vercel Production (on merge). Миграции и функции деплоятся через `supabase-cli`.
-2.  **Начальное наполнение (Seeding):** Создать файл `supabase/seed.sql` для автоматического наполнения таблиц `clinics`, `procedures_catalog`, `wa_templates`.
+2.  **Начальное наполнение (Seeding):** Создать файл `supabase/seed.sql` для автоматического наполнения таблиц `clinics`, `procedures_catalog`, `wa_templates`. Пример наполнения:
+    ```sql
+    -- supabase/seed.sql
+    INSERT INTO public.clinics (name, color_hex) VALUES
+    ('Smile More Clinic', '#3498db'),
+    ('Dudko Dental Clinic', '#e74c3c');
+
+    INSERT INTO public.procedures_catalog (name, color_hex) VALUES
+    ('Консультация', '#f1c40f'),
+    ('Гигиена', '#1abc9c');
+    
+    -- ... и так далее для других таблиц
+    ```
 
 ---
 
