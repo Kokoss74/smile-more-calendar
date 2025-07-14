@@ -66,7 +66,7 @@ export interface AppointmentTemplate {
 export const appointmentTemplateSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   default_duration_min: z.coerce.number().int().positive({ message: "Duration must be a positive number." }),
-  default_procedure_id: z.string().uuid().optional().nullable(),
+  default_procedure_id: z.string().uuid({ message: "Invalid procedure ID" }).optional().nullable(),
   default_cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
 });
 
@@ -112,3 +112,19 @@ export interface AppointmentWithRelations extends Appointment {
   clinics: { color_hex: string } | null;
   procedures_catalog: { color_hex: string } | null;
 }
+
+export const appointmentSchema = z.object({
+  clinic_id: z.uuid({ message: "Invalid clinic ID" }),
+  start_ts: z.iso.datetime({ message: "Invalid start time" }),
+  end_ts: z.iso.datetime({ message: "Invalid end time" }),
+  patient_id: z.uuid({ message: "Invalid patient ID" }).optional().nullable(),
+  short_label: z.string().min(2, "Label must be at least 2 characters."),
+  status: z.enum(['scheduled', 'completed', 'canceled']),
+  procedure_id: z.uuid({ message: "Invalid procedure ID" }).optional().nullable(),
+  cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
+  tooth_num: z.string().max(10, "Tooth number is too long.").optional().nullable(),
+  description: z.string().optional().nullable(),
+  private: z.boolean().default(true),
+});
+
+export type AppointmentFormData = z.infer<typeof appointmentSchema>;
