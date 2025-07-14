@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import AuthButton from "@/components/auth/AuthButton";
 
 export default async function LoginPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
