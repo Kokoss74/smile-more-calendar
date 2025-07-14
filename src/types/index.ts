@@ -71,3 +71,19 @@ export const appointmentTemplateSchema = z.object({
 });
 
 export type AppointmentTemplateFormData = z.infer<typeof appointmentTemplateSchema>;
+
+export interface WaTemplate {
+  id: string;
+  code: string;
+  body_ru: string;
+  body_il: string;
+  created_at: string;
+}
+
+export const waTemplateSchema = z.object({
+  code: z.string().min(3, { message: "Code must be at least 3 characters." }).regex(/^[a-z0-9_]+$/, { message: "Code can only contain lowercase letters, numbers, and underscores." }),
+  body_ru: z.string().min(10, { message: "Russian template must be at least 10 characters." }),
+  body_il: z.string().min(10, { message: "Hebrew template must be at least 10 characters." }),
+});
+
+export type WaTemplateFormData = z.infer<typeof waTemplateSchema>;
