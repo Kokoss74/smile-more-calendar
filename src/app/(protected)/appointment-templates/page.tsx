@@ -13,11 +13,16 @@ import {
   Alert,
   Button,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 import { useAppointmentTemplates, useDeleteAppointmentTemplate } from '@/hooks/useAppointmentTemplates';
 import { AppointmentTemplate } from '@/types';
-// import AppointmentTemplateFormDialog from './AppointmentTemplateFormDialog';
+import AppointmentTemplateFormDialog from './AppointmentTemplateFormDialog';
 
 const AppointmentTemplatesPage = () => {
   const { data: templates, isLoading, error } = useAppointmentTemplates();
@@ -25,6 +30,8 @@ const AppointmentTemplatesPage = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<AppointmentTemplate | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<AppointmentTemplate | null>(null);
 
   const handleOpenDialog = (template: AppointmentTemplate | null = null) => {
     setSelectedTemplate(template);
@@ -36,9 +43,25 @@ const AppointmentTemplatesPage = () => {
     setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
-      deleteTemplateMutation.mutate(id);
+  const openDeleteConfirm = (template: AppointmentTemplate) => {
+    setTemplateToDelete(template);
+    setConfirmOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (templateToDelete) {
+      deleteTemplateMutation.mutate(templateToDelete.id, {
+        onSuccess: () => {
+          setConfirmOpen(false);
+          setTemplateToDelete(null);
+          // Optionally, add a snackbar here for feedback
+        },
+        onError: (error) => {
+          setConfirmOpen(false);
+          // Optionally, add a snackbar here for feedback
+          console.error("Failed to delete template:", error);
+        }
+      });
     }
   };
 
@@ -74,7 +97,7 @@ const AppointmentTemplatesPage = () => {
                   <IconButton edge="end" aria-label="edit" onClick={() => handleOpenDialog(template)}>
                     <Edit />
                   </IconButton>
-                  <IconButton edge="end" aria-label="delete" onClick={() => handleDelete(template.id)} sx={{ ml: 1 }}>
+                  <IconButton edge="end" aria-label="delete" onClick={() => openDeleteConfirm(template)} sx={{ ml: 1 }}>
                     <Delete />
                   </IconButton>
                 </>
@@ -90,11 +113,29 @@ const AppointmentTemplatesPage = () => {
         ))}
       </List>
 
-      {/* <AppointmentTemplateFormDialog
+      <AppointmentTemplateFormDialog
         open={dialogOpen}
         onClose={handleCloseDialog}
         template={selectedTemplate}
-      /> */}
+      />
+
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure want to delete the template &quot;{templateToDelete?.name}&quot;? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={handleDelete} color="error" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
