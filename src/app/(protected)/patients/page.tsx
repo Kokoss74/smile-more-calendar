@@ -25,8 +25,10 @@ import {
   FormControl,
   InputLabel,
   Grid,
+  Tooltip,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import StarIcon from '@mui/icons-material/Star';
 import {
   usePatients,
   useAddPatient,
@@ -164,8 +166,17 @@ export default function PatientsPage() {
           >
             <ListItemButton onClick={() => handleOpenForm(patient)}>
               <ListItemText
-                primary={`${patient.last_name} ${patient.first_name}`}
-                secondary={`Phone: ${patient.phone} | Age: ${patient.age ?? 'N/A'}`}
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {patient.is_dispensary && (
+                      <Tooltip title="Dispensary Group">
+                        <StarIcon sx={{ color: 'gold', mr: 1 }} />
+                      </Tooltip>
+                    )}
+                    {`${patient.last_name} ${patient.first_name}`}
+                  </Box>
+                }
+                secondary={`Phone: ${patient.phone} | Age: ${patient.age ?? 'N/A'} | Added: ${new Date(patient.created_at).toLocaleDateString('en-GB')}`}
               />
             </ListItemButton>
           </ListItem>

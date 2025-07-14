@@ -46,7 +46,7 @@ export const patientSchema = z.object({
   first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
   last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
   phone: z.string().min(9, { message: "Phone number must be at least 9 digits." }),
-  age: z.coerce.number().int().positive().optional().nullable(),
+  age: z.coerce.number().int().positive().min(5, { message: "Age must be at least 5." }).max(120, { message: "Age must be at most 120." }).optional().nullable(),
   notes: z.string().optional().nullable(),
   medical_info: z.record(z.string(), z.unknown()).optional().nullable(),
   is_dispensary: z.boolean().default(false),
