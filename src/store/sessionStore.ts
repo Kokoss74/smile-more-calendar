@@ -4,7 +4,7 @@ import type { User } from '@supabase/supabase-js';
 // Define the shape of the profile data we want to store
 export interface Profile {
   role: 'admin' | 'clinic_staff' | 'guest';
-  // Add other profile fields here as needed, e.g., clinic_id
+  clinic_id: string | null;
 }
 
 // Define the state shape for our store

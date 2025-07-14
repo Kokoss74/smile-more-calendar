@@ -10,11 +10,21 @@ import {
   TextField,
   Grid,
   CircularProgress,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  IconButton,
+  Box,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AppointmentFormData, appointmentSchema } from '@/types';
-import { AppointmentWithRelations } from '@/types';
+import { AppointmentFormData, appointmentSchema, AppointmentWithRelations } from '@/types';
+import { useAddAppointment, useUpdateAppointment, useDeleteAppointment } from '@/hooks/useAppointments';
+import { useClinics } from '@/hooks/useClinics';
+import { usePatients } from '@/hooks/usePatients';
+import { useProcedures } from '@/hooks/useProcedures';
+import { useSessionStore } from '@/store/sessionStore';
 
 interface AppointmentFormDialogProps {
   open: boolean;
@@ -30,58 +40,191 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   defaultDateTime,
 }) => {
   const isEditMode = !!appointment;
+  const { profile } = useSessionStore();
+
+  const { data: clinics, isLoading: isLoadingClinics } = useClinics();
+  const { data: patients, isLoading: isLoadingPatients } = usePatients({ sortBy: 'created_at', isDispensary: null });
+  const { data: procedures, isLoading: isLoadingProcedures } = useProcedures();
+
+  const addAppointmentMutation = useAddAppointment();
+  const updateAppointmentMutation = useUpdateAppointment();
+  const deleteAppointmentMutation = useDeleteAppointment();
 
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     reset,
   } = useForm({
     resolver: zodResolver(appointmentSchema),
-    defaultValues: {},
   });
 
+  const isSubmitting = addAppointmentMutation.isPending || updateAppointmentMutation.isPending;
+
   const onSubmit = async (data: AppointmentFormData) => {
-    // Submit logic will be here
-    console.log(data);
-    onClose();
+    try {
+      if (isEditMode && appointment) {
+        await updateAppointmentMutation.mutateAsync({ id: appointment.id, ...data });
+      } else {
+        await addAppointmentMutation.mutateAsync(data);
+      }
+      onClose();
+    } catch (error) {
+      console.error("Failed to save appointment", error);
+      // Here you can add user-facing error handling (e.g., a snackbar)
+    }
+  };
+
+  const handleDelete = async () => {
+    if (isEditMode && appointment) {
+      try {
+        await deleteAppointmentMutation.mutateAsync(appointment.id);
+        onClose();
+      } catch (error) {
+        console.error("Failed to delete appointment", error);
+      }
+    }
   };
 
   React.useEffect(() => {
     if (open) {
       if (isEditMode && appointment) {
-        // set edit values
+        const defaultValues: Partial<AppointmentFormData> = {
+          ...appointment,
+          clinic_id: String(appointment.clinic_id),
+          patient_id: appointment.patient_id ? String(appointment.patient_id) : null,
+          procedure_id: appointment.procedure_id ? String(appointment.procedure_id) : null,
+          cost: appointment.cost ?? undefined,
+        };
+        reset(defaultValues);
       } else if (defaultDateTime) {
-        // set new values
+        const defaultValues: Partial<AppointmentFormData> = {
+          start_ts: defaultDateTime.startStr,
+          end_ts: defaultDateTime.endStr,
+          status: 'scheduled',
+          private: profile?.role === 'admin', // Default to private for admin
+          clinic_id: profile?.clinic_id || undefined,
+        };
+        reset(defaultValues);
       } else {
         reset({});
       }
     }
-  }, [appointment, defaultDateTime, isEditMode, open, reset]);
+  }, [appointment, defaultDateTime, isEditMode, open, reset, profile]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{isEditMode ? 'Edit Appointment' : 'New Appointment'}</DialogTitle>
+      <DialogTitle>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          {isEditMode ? 'Edit Appointment' : 'New Appointment'}
+          {isEditMode && (
+            <IconButton onClick={handleDelete} disabled={deleteAppointmentMutation.isPending}>
+              <DeleteIcon />
+            </IconButton>
+          )}
+        </Box>
+      </DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
-          <Grid container spacing={2}>
-            {/* Form fields will be here */}
-            <Grid size={{ xs: 12 }}>
-              <Controller
-                name="short_label"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Short Label"
-                    fullWidth
-                    error={!!errors.short_label}
-                    helperText={errors.short_label?.message}
-                  />
-                )}
-              />
+          {(isLoadingClinics || isLoadingPatients || isLoadingProcedures) ? (
+            <CircularProgress />
+          ) : (
+            <Grid container spacing={2} sx={{ pt: 1 }}>
+              <Grid size={{ xs: 12 }}>
+                <Controller
+                  name="short_label"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} label="Short Label" fullWidth error={!!errors.short_label} helperText={errors.short_label?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Controller
+                  name="clinic_id"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select label="Clinic" fullWidth error={!!errors.clinic_id} helperText={errors.clinic_id?.message}>
+                      {clinics?.map((clinic) => (
+                        <MenuItem key={clinic.id} value={clinic.id}>{clinic.name}</MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Controller
+                  name="patient_id"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select label="Patient" fullWidth error={!!errors.patient_id} helperText={errors.patient_id?.message}>
+                      <MenuItem value=""><em>None</em></MenuItem>
+                      {patients?.map((patient) => (
+                        <MenuItem key={patient.id} value={patient.id}>{`${patient.first_name} ${patient.last_name}`}</MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Controller
+                  name="procedure_id"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select label="Procedure" fullWidth error={!!errors.procedure_id} helperText={errors.procedure_id?.message}>
+                      <MenuItem value=""><em>None</em></MenuItem>
+                      {procedures?.map((proc) => (
+                        <MenuItem key={proc.id} value={proc.id}>{proc.name}</MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Controller
+                  name="cost"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} type="number" label="Cost" fullWidth error={!!errors.cost} helperText={errors.cost?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} label="Description" multiline rows={3} fullWidth error={!!errors.description} helperText={errors.description?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} select label="Status" fullWidth error={!!errors.status} helperText={errors.status?.message}>
+                      <MenuItem value="scheduled">Scheduled</MenuItem>
+                      <MenuItem value="completed">Completed</MenuItem>
+                      <MenuItem value="canceled">Canceled</MenuItem>
+                    </TextField>
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <FormControlLabel
+                  control={
+                    <Controller
+                      name="private"
+                      control={control}
+                      render={({ field }) => <Checkbox {...field} checked={field.value} />}
+                    />
+                  }
+                  label="Private Appointment"
+                />
+              </Grid>
             </Grid>
-          </Grid>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
