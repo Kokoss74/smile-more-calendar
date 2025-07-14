@@ -5,7 +5,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography, Snackbar, Alert } from '@mui/material';
 import { EventInput, EventClickArg, DateSelectArg } from '@fullcalendar/core';
 import { AppointmentWithRelations } from '@/types';
 import AppointmentFormDialog from '@/app/(protected)/appointments/AppointmentFormDialog';
@@ -23,11 +23,31 @@ const Calendar: React.FC = () => {
   const { data: appointments, isLoading, isError, error } = useAppointments();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<{ startStr: string, endStr: string } | undefined>(undefined);
+  const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date } | undefined>(undefined);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'error' | 'warning' | 'info' | 'success' } | null>(null);
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
-    selectInfo.view.calendar.unselect();
-    setSelectedSlot({ startStr: selectInfo.startStr, endStr: selectInfo.endStr });
+    const { start, end, view } = selectInfo;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    if (start < now) {
+      setSnackbar({ open: true, message: "Cannot select a past date.", severity: 'warning' });
+      view.calendar.unselect();
+      return;
+    }
+
+    const isOverlapping = appointments?.some(app => 
+      app.status !== 'canceled' && (start < new Date(app.end_ts) && end > new Date(app.start_ts))
+    );
+
+    if (isOverlapping) {
+      setSnackbar({ open: true, message: "This time slot is already booked.", severity: 'warning' });
+      view.calendar.unselect();
+      return;
+    }
+
+    setSelectedSlot({ start, end });
     setSelectedAppointment(null);
     setDialogOpen(true);
   };
@@ -44,6 +64,7 @@ const Calendar: React.FC = () => {
     setSelectedAppointment(null);
     setSelectedSlot(undefined);
   };
+
 
   const events = useMemo(() => {
     if (!appointments) return CALENDAR_NON_WORKING_DAYS;
@@ -123,6 +144,7 @@ const Calendar: React.FC = () => {
         selectMirror={true}
         dayMaxEvents={true}
         weekends={true}
+        hiddenDays={[6]} // Hide Saturday
         slotMinTime={CALENDAR_BUSINESS_HOURS.startTime}
         slotMaxTime={CALENDAR_BUSINESS_HOURS.endTime}
         height="100%"
@@ -143,6 +165,18 @@ const Calendar: React.FC = () => {
         appointment={selectedAppointment}
         defaultDateTime={selectedSlot}
       />
+      {snackbar && (
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert onClose={() => setSnackbar(null)} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      )}
     </Box>
   );
 };

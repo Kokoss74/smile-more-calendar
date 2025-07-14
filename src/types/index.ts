@@ -114,17 +114,26 @@ export interface AppointmentWithRelations extends Appointment {
 }
 
 export const appointmentSchema = z.object({
-  clinic_id: z.uuid({ message: "Invalid clinic ID" }),
-  start_ts: z.iso.datetime({ message: "Invalid start time" }),
-  end_ts: z.iso.datetime({ message: "Invalid end time" }),
-  patient_id: z.uuid({ message: "Invalid patient ID" }).optional().nullable(),
-  short_label: z.string().min(2, "Label must be at least 2 characters."),
+  clinic_id: z.uuid({ message: "Clinic is required." }),
+  start_ts: z.iso.datetime({ message: "Invalid start time." }),
+  end_ts: z.iso.datetime({ message: "Invalid end time." }),
+  patient_id: z.uuid({ message: "Patient is required." }),
+  procedure_id: z.uuid({ message: "Procedure is required." }),
+  short_label: z.string().optional(),
   status: z.enum(['scheduled', 'completed', 'canceled']),
-  procedure_id: z.uuid({ message: "Invalid procedure ID" }).optional().nullable(),
   cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
   tooth_num: z.string().max(10, "Tooth number is too long.").optional().nullable(),
   description: z.string().optional().nullable(),
-  private: z.boolean().default(true),
+}).refine(data => new Date(data.start_ts) < new Date(data.end_ts), {
+  message: "End time must be after start time.",
+  path: ["end_ts"],
+}).refine(data => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return new Date(data.start_ts) >= now;
+}, {
+  message: "Cannot book appointments in the past.",
+  path: ["start_ts"],
 });
 
 export type AppointmentFormData = z.infer<typeof appointmentSchema>;
