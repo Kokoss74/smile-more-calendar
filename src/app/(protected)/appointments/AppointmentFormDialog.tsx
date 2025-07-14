@@ -57,6 +57,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
     reset,
   } = useForm({
     resolver: zodResolver(appointmentSchema),
+    shouldFocusError: true,
   });
 
   const isSubmitting = addAppointmentMutation.isPending || updateAppointmentMutation.isPending;
@@ -87,45 +88,39 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   };
 
   React.useEffect(() => {
-    if (open) {
-      if (isEditMode && appointment) {
-        const defaultValues: Partial<AppointmentFormData> = {
-          ...appointment,
-          clinic_id: String(appointment.clinic_id),
-          patient_id: appointment.patient_id ? String(appointment.patient_id) : null,
-          procedure_id: appointment.procedure_id ? String(appointment.procedure_id) : null,
-          cost: appointment.cost ?? undefined,
-        };
-        reset(defaultValues);
-      } else if (defaultDateTime) {
-        reset({
-          start_ts: defaultDateTime.startStr,
-          end_ts: defaultDateTime.endStr,
-          status: 'scheduled',
-          private: profile?.role === 'admin',
-          clinic_id: profile?.clinic_id || '',
-          short_label: '',
-          patient_id: null,
-          procedure_id: null,
-          cost: undefined,
-          description: '',
-          tooth_num: ''
-        });
-      } else {
-        reset({
-          short_label: '',
-          clinic_id: '',
-          patient_id: null,
-          procedure_id: null,
-          cost: undefined,
-          description: '',
-          status: 'scheduled',
-          private: true,
-          start_ts: '',
-          end_ts: '',
-          tooth_num: ''
-        });
-      }
+    if (!open) return;
+
+    if (isEditMode && appointment) {
+      const defaultValues: AppointmentFormData = {
+        ...appointment,
+        start_ts: new Date(appointment.start_ts).toISOString(),
+        end_ts: new Date(appointment.end_ts).toISOString(),
+        clinic_id: String(appointment.clinic_id),
+        patient_id: appointment.patient_id ? String(appointment.patient_id) : '',
+        procedure_id: appointment.procedure_id ? String(appointment.procedure_id) : '',
+        cost: appointment.cost ?? undefined,
+        tooth_num: appointment.tooth_num ?? '',
+        description: appointment.description ?? '',
+        status: appointment.status ?? 'scheduled',
+        private: appointment.private ?? true,
+        short_label: appointment.short_label ?? '',
+      };
+      reset(defaultValues);
+    } else {
+      const initialValues: AppointmentFormData = {
+        start_ts: defaultDateTime ? new Date(defaultDateTime.startStr).toISOString() : '',
+        end_ts: defaultDateTime ? new Date(defaultDateTime.endStr).toISOString() : '',
+        status: 'scheduled',
+        private: profile?.role === 'admin',
+        clinic_id: profile?.clinic_id || '',
+        short_label: '',
+        patient_id: '',
+        procedure_id: '',
+        cost: undefined,
+        description: '',
+        tooth_num: '',
+      };
+      reset(initialValues);
     }
   }, [open, isEditMode, appointment, defaultDateTime, reset, profile]);
 
