@@ -1,14 +1,14 @@
 -- Seed data for the 'clinics' table
 INSERT INTO public.clinics (name, color_hex) VALUES
 ('Smile More Clinic', '#3498db'),
-('Dudko Dental Clinic', '#e74c3c'),
+('Dudko Dental Clinic', '#e74c3c');
 
 -- Seed data for the 'procedures_catalog' table
 INSERT INTO public.procedures_catalog (name, color_hex) VALUES
 ('Консультация', '#f1c40f'),
 ('Гигиена', '#1abc9c'),
 ('Лечение кариеса', '#9b59b6'),
-('Лечение корневого канала', '#e67e22')
+('Лечение корневого канала', '#e67e22');
 
 -- Seed data for the 'wa_templates' table
 INSERT INTO public.wa_templates (code, body_ru, body_il) VALUES
