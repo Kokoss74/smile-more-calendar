@@ -70,9 +70,14 @@ create policy "Allow staff to update status to canceled" on public.appointments 
 
 -- Trigger function to check for overlapping appointments
 CREATE OR REPLACE FUNCTION public.check_appointment_overlap()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+-- Устанавливаем пустой search_path для безопасности
+SET search_path = ''
+AS $$
 BEGIN
   IF EXISTS (
+    -- Явно указываем схему 'public' для таблицы
     SELECT 1 FROM public.appointments
     WHERE
       (clinic_id = NEW.clinic_id OR (clinic_id IS NULL AND NEW.clinic_id IS NULL)) AND
@@ -85,20 +90,34 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Trigger that executes the function
 CREATE TRIGGER trigger_check_appointment_overlap
 BEFORE INSERT OR UPDATE ON public.appointments
 FOR EACH ROW EXECUTE FUNCTION check_appointment_overlap();
 
--- Helper functions (создаем после политик)
-create function public.current_role() returns text
-  language sql stable security definer as $$
-    select role from public.profiles where user_id = auth.uid()
-  $$;
+-- Helper functions with secure search_path
+CREATE OR REPLACE FUNCTION public.current_role() 
+RETURNS text
+LANGUAGE sql 
+STABLE 
+SECURITY DEFINER 
+-- Устанавливаем пустой search_path для безопасности
+SET search_path = ''
+AS $$
+  -- Явно указываем схемы для таблицы и функции
+  SELECT role FROM public.profiles WHERE user_id = auth.uid()
+$$;
 
-create function public.current_clinic() returns uuid
-  language sql stable security definer as $$
-    select clinic_id from public.profiles where user_id = auth.uid()
-  $$;
+CREATE OR REPLACE FUNCTION public.current_clinic() 
+RETURNS uuid
+LANGUAGE sql 
+STABLE 
+SECURITY DEFINER 
+-- Устанавливаем пустой search_path для безопасности
+SET search_path = ''
+AS $$
+  -- Явно указываем схемы для таблицы и функции
+  SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()
+$$;
