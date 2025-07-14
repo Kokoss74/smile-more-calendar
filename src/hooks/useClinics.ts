@@ -60,3 +60,28 @@ export const useDeleteClinic = () => {
     },
   });
 };
+
+const updateClinic = async ({ id, ...clinicData }: { id: string } & ClinicFormData) => {
+  const { data, error } = await supabase
+    .from('clinics')
+    .update(clinicData)
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const useUpdateClinic = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateClinic,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clinics'] });
+    },
+  });
+};
