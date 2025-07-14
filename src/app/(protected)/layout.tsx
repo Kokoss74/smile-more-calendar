@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 
-export default async function Home() {
+export default async function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createClient();
 
   const {
@@ -20,20 +24,17 @@ export default async function Home() {
     .single();
 
   // TODO: Handle case where profile is not found (e.g., first-time login)
-  // For now, we'll just log it and proceed.
   if (!profile) {
     console.error("User profile not found for user_id:", user.id);
-    // redirect("/create-profile"); // This will be the next step
+    // A proper flow would redirect to a profile creation page.
+    // For now, we'll treat them as a guest, which will limit their access.
   }
 
-  const userRole = profile?.role || "guest";
+  const userRole = (profile?.role || "guest") as 'admin' | 'clinic_staff' | 'guest';
 
   return (
     <AppShell user={user} userRole={userRole}>
-      <p>
-        Welcome back, {user.email} (Role: {userRole})
-      </p>
-      {/* Calendar component will go here */}
+      {children}
     </AppShell>
   );
 }
