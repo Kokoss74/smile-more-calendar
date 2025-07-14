@@ -16,7 +16,7 @@ export default async function LoginPage() {
   return (
     <div>
       <h2>Login</h2>
-      <AuthButton />
+      <AuthButton user={null} />
     </div>
   );
 }
