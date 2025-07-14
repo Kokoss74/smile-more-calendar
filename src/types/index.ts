@@ -28,3 +28,28 @@ export const procedureSchema = z.object({
 });
 
 export type ProcedureFormData = z.infer<typeof procedureSchema>;
+
+export interface Patient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  age: number | null;
+  notes: string | null;
+  medical_info: Record<string, unknown> | null;
+  is_dispensary: boolean;
+  owner_id: string | null; // admin user_id
+  created_at: string;
+}
+
+export const patientSchema = z.object({
+  first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
+  phone: z.string().min(9, { message: "Phone number must be at least 9 digits." }),
+  age: z.coerce.number().int().positive().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  medical_info: z.record(z.string(), z.unknown()).optional().nullable(),
+  is_dispensary: z.boolean().default(false),
+});
+
+export type PatientFormData = z.infer<typeof patientSchema>;
