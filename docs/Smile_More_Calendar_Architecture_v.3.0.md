@@ -1,6 +1,6 @@
 
 # Smile More Calendar
-### Архитектурный документ • версия 3.1 (актуальная) • 2025-07-15
+### Архитектурный документ • версия 3.2 (актуальная) • 2025-07-16
 
 Этот документ является единым и финальным источником требований и технических решений для разработки web-приложения учёта пациентов и расписания врача-стоматолога в Израиле с приоритетом на использование на мобильных устройствах (**Mobile-First**).
 
@@ -149,11 +149,15 @@ create policy "Allow staff to read appointments of their clinic" on public.appoi
 );
 create policy "Allow staff to insert appointments for their clinic" on public.appointments for insert with check ( 
   exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
-  and send_notifications = false and patient_id is null 
 );
-create policy "Allow staff to update status to canceled" on public.appointments for update using ( 
-  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
-) with check ( status = 'canceled' );
+create policy "Allow staff to update their clinic's appointments" on public.appointments for update using (
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id)
+) with check (
+  clinic_id = (select p.clinic_id from public.profiles p where p.user_id = auth.uid()) and status <> 'completed'
+);
+create policy "Allow staff to delete appointments in their clinic" on public.appointments for delete using (
+  exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id)
+);
 ```
 
 ### 4.3 Триггер для проверки пересечений

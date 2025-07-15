@@ -475,7 +475,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                     startTs={startTs}
                     setValue={setValue as any}
                   />
-                ) : isClinicStaff ? (
+                ) : (isClinicStaff || (isEditMode && !appointment?.patient_id)) ? (
                   <StaffAppointmentForm control={control as any} errors={errors as any} />
                 ) : (
                   <AdminAppointmentForm

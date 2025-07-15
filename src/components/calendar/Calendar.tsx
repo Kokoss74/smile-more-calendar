@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -10,6 +10,7 @@ import { EventInput, EventClickArg, DateSelectArg } from '@fullcalendar/core';
 import { AppointmentWithRelations } from '@/types';
 import AppointmentFormDialog from '@/app/(protected)/appointments/AppointmentFormDialog';
 import { useAppointments } from '@/hooks/useAppointments';
+import { useSessionStore } from '@/store/sessionStore';
 import { 
   CALENDAR_BUSINESS_HOURS, 
   CALENDAR_DAY_HEADER_FORMAT, 
@@ -18,16 +19,32 @@ import {
   DEFAULT_EVENT_BACKGROUND_COLOR,
   DEFAULT_EVENT_BORDER_COLOR,
   BLOCKED_SLOT_BACKGROUND_COLOR,
-  BLOCKED_SLOT_BORDER_COLOR
+  BLOCKED_SLOT_BORDER_COLOR,
+  GENERIC_BUSY_LABEL,
+  COMPLETED_EVENT_TEXT_COLOR
 } from '@/config/constants';
 
 const Calendar: React.FC = () => {
+  const { profile } = useSessionStore();
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date } | null>(null);
-  const { data: appointments, isLoading, isError, error } = useAppointments(dateRange?.start, dateRange?.end);
+  const { data: fetchedAppointments, isLoading, isError, error } = useAppointments(dateRange?.start, dateRange?.end);
+  const [localAppointments, setLocalAppointments] = useState<AppointmentWithRelations[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date } | undefined>(undefined);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'error' | 'warning' | 'info' | 'success' } | null>(null);
+
+  useEffect(() => {
+    if (fetchedAppointments) {
+      setLocalAppointments(fetchedAppointments);
+    }
+  }, [fetchedAppointments]);
+
+  const handleSaveAppointment = (updatedAppointment: AppointmentWithRelations) => {
+    setLocalAppointments(prev => 
+      prev.map(app => app.id === updatedAppointment.id ? updatedAppointment : app)
+    );
+  };
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     const { start, end, view } = selectInfo;
@@ -40,7 +57,7 @@ const Calendar: React.FC = () => {
       return;
     }
 
-    const isOverlapping = appointments?.some(app => 
+    const isOverlapping = localAppointments?.some(app => 
       app.status !== 'canceled' && (start < new Date(app.end_ts) && end > new Date(app.start_ts))
     );
 
@@ -57,6 +74,15 @@ const Calendar: React.FC = () => {
 
   const handleEventClick = (clickInfo: EventClickArg) => {
     const appointment = clickInfo.event.extendedProps as AppointmentWithRelations;
+
+    // Security check: Prevent clinic_staff from opening appointments that are not theirs.
+    // The RPC function already anonymizes private admin appointments, but this adds a layer of UI safety.
+    if (profile?.role === 'clinic_staff' && appointment.clinic_id !== profile.clinic_id) {
+      // Optionally, show a snackbar message
+      setSnackbar({ open: true, message: "You do not have permission to view this appointment.", severity: 'warning' });
+      return; // Do not open the dialog
+    }
+
     setSelectedAppointment(appointment);
     setSelectedSlot(undefined);
     setDialogOpen(true);
@@ -70,9 +96,25 @@ const Calendar: React.FC = () => {
 
 
   const events = useMemo(() => {
-    if (!appointments) return CALENDAR_NON_WORKING_DAYS;
+    if (!localAppointments) return CALENDAR_NON_WORKING_DAYS;
 
-    const appointmentEvents: EventInput[] = appointments.map(app => {
+    const appointmentEvents: EventInput[] = localAppointments.map(app => {
+      // For clinic_staff, render any appointment not in their clinic as a generic busy slot.
+      if (profile?.role === 'clinic_staff' && app.clinic_id !== profile.clinic_id) {
+        return {
+          id: String(app.id),
+          title: GENERIC_BUSY_LABEL, // Generic "Busy" label, RPC already provides this
+          start: app.start_ts,
+          end: app.end_ts,
+          backgroundColor: BLOCKED_SLOT_BACKGROUND_COLOR,
+          borderColor: BLOCKED_SLOT_BORDER_COLOR,
+          classNames: ['event-with-border'],
+          editable: false, // Prevent interaction
+          extendedProps: { ...app },
+        };
+      }
+
+      // Render explicitly blocked slots with the same busy style for all roles.
       if (app.status === 'blocked') {
         return {
           id: String(app.id),
@@ -82,12 +124,11 @@ const Calendar: React.FC = () => {
           backgroundColor: BLOCKED_SLOT_BACKGROUND_COLOR,
           borderColor: BLOCKED_SLOT_BORDER_COLOR,
           classNames: ['event-with-border'],
-          extendedProps: {
-            ...app
-          }
+          extendedProps: { ...app },
         };
       }
       
+      // Default rendering for admin or for staff's own appointments.
       return {
         id: String(app.id),
         title: app.short_label,
@@ -95,15 +136,14 @@ const Calendar: React.FC = () => {
         end: app.end_ts,
         backgroundColor: app.clinics?.color_hex || DEFAULT_EVENT_BACKGROUND_COLOR,
         borderColor: app.procedures_catalog?.color_hex || DEFAULT_EVENT_BORDER_COLOR,
+        textColor: app.status === 'completed' ? COMPLETED_EVENT_TEXT_COLOR : undefined,
         classNames: ['event-with-border'],
-        extendedProps: {
-          ...app
-        }
+        extendedProps: { ...app },
       };
     });
     
     return [...CALENDAR_NON_WORKING_DAYS, ...appointmentEvents];
-  }, [appointments]);
+  }, [localAppointments, profile]);
 
   if (isLoading) {
     return (
@@ -116,7 +156,7 @@ const Calendar: React.FC = () => {
   if (isError) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <Typography color="error">Error loading appointments: {error.message}</Typography>
+        <Typography color="error">Error loading appointments: {error?.message}</Typography>
       </Box>
     );
   }
@@ -192,6 +232,7 @@ const Calendar: React.FC = () => {
       <AppointmentFormDialog
         open={dialogOpen}
         onClose={handleDialogClose}
+        onSave={handleSaveAppointment}
         appointment={selectedAppointment}
         defaultDateTime={selectedSlot}
       />

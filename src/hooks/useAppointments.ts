@@ -50,23 +50,27 @@ export const useAppointments = (startDate?: Date, endDate?: Date) => {
       // The RPC function returns a slightly different shape, so we map it to AppointmentWithRelations
       return data.map((apt: RpcAppointment) => ({
         ...apt,
+        // Keep the flat properties from RpcAppointment
+        // And construct the nested objects expected by AppointmentWithRelations
+        clinics: apt.clinic_id ? {
+          // id: apt.clinic_id, // Not in AppointmentWithRelations['clinics'] type
+          // name: apt.clinic_name, // Not in AppointmentWithRelations['clinics'] type
+          color_hex: apt.clinic_color,
+        } : null,
+        procedures_catalog: apt.procedure_id ? {
+          // id: apt.procedure_id, // Not in AppointmentWithRelations['procedures_catalog'] type
+          // name: apt.procedure_name, // Not in AppointmentWithRelations['procedures_catalog'] type
+          color_hex: apt.procedure_color,
+        } : null,
+        // We also add patient details for convenience, even if not strictly in AppointmentWithRelations
+        // This can be useful for displaying info in the calendar/dialog
         patient: apt.patient_id ? {
           id: apt.patient_id,
           first_name: apt.first_name,
           last_name: apt.last_name,
           owner_id: apt.owner_id,
         } : null,
-        clinic: apt.clinic_id ? {
-          id: apt.clinic_id,
-          name: apt.clinic_name,
-          color_hex: apt.clinic_color,
-        } : null,
-        procedure: apt.procedure_id ? {
-          id: apt.procedure_id,
-          name: apt.procedure_name,
-          color_hex: apt.procedure_color,
-        } : null,
-      })) as AppointmentWithRelations[];
+      })) as unknown as AppointmentWithRelations[];
     },
     enabled: !!profile && !!startDate && !!endDate,
   });

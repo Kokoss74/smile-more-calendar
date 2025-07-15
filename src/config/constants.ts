@@ -58,3 +58,7 @@ export const PATIENT_TYPES = [
 ];
 
 export const SMILE_MORE_CLINIC_NAME = 'Smile More Clinic';
+
+export const GENERIC_BUSY_LABEL = 'Время занято';
+
+export const COMPLETED_EVENT_TEXT_COLOR = '#1B5E20'; // Dark Green
