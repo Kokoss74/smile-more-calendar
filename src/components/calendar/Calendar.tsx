@@ -111,7 +111,11 @@ const Calendar: React.FC = () => {
         '--fc-border-color': 'rgba(0, 0, 0, 0.12)',
         '--fc-today-bg-color': 'rgba(25, 118, 210, 0.04)',
         '.event-with-border': {
-          borderLeft: '4px solid',
+          borderLeft: '8px solid',
+        },
+        '.fc-event-title': {
+          fontSize: '0.9em',
+          fontWeight: '',
         },
         '& ::-webkit-scrollbar': {
           width: '8px',
