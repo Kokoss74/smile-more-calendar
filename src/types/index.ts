@@ -122,21 +122,23 @@ export const appointmentSchema = z.object({
   path: ["end_ts"],
 })
 .refine(data => {
+  // For regular appointments, either a patient must be selected or a short label must be provided.
   if (data.status !== 'blocked') {
-    return !!data.patient_id;
+    return !!data.patient_id || !!data.short_label;
   }
   return true;
 }, {
-  message: "Patient is required.",
-  path: ["patient_id"],
+  message: "Patient or a short label is required.",
+  path: ["patient_id"], // Report error on patient field if check fails
 })
 .refine(data => {
-  if (data.status !== 'blocked') {
+  // A procedure is only required if a patient is selected (i.e., it's not a staff-created short-label appointment).
+  if (data.status !== 'blocked' && data.patient_id) {
     return !!data.procedure_id;
   }
   return true;
 }, {
-  message: "Procedure is required.",
+  message: "Procedure is required for patient appointments.",
   path: ["procedure_id"],
 })
 .refine(data => {
