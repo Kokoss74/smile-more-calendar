@@ -19,6 +19,7 @@ import {
   Divider,
   FormControl,
   FormLabel,
+  Switch,
 } from '@mui/material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { setHours, parseISO } from 'date-fns';
@@ -34,6 +35,7 @@ import { useClinics } from '@/hooks/useClinics';
 import { useSessionStore } from '@/store/sessionStore';
 import PatientFormDialog from '../patients/PatientFormDialog';
 import ProcedureFormDialog from '../procedures/ProcedureFormDialog';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { PatientFormData, ProcedureFormData } from '@/types';
 import { DURATION_OPTIONS } from '@/config/constants';
 
@@ -89,6 +91,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
 
   const [isPatientDialogOpen, setPatientDialogOpen] = useState(false);
   const [isProcedureDialogOpen, setProcedureDialogOpen] = useState(false);
+  const [isConfirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
 
   const isSubmitting = addAppointmentMutation.isPending || updateAppointmentMutation.isPending;
 
@@ -150,13 +153,20 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   };
 
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setConfirmDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (isEditMode && appointment) {
       try {
         await deleteAppointmentMutation.mutateAsync(appointment.id);
-        onClose();
+        setConfirmDeleteDialogOpen(false);
+        onClose(); // Close the main form dialog as well
       } catch (error) {
         console.error("Failed to delete appointment", error);
+        // Optionally, show a snackbar error message
+        setConfirmDeleteDialogOpen(false);
       }
     }
   };
@@ -441,6 +451,13 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
         open={isProcedureDialogOpen}
         onClose={() => setProcedureDialogOpen(false)}
         onSubmit={handleAddNewProcedure}
+      />
+      <ConfirmDialog
+        open={isConfirmDeleteDialogOpen}
+        onClose={() => setConfirmDeleteDialogOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Confirm Deletion"
+        description="Are you sure you want to delete this appointment? This action cannot be undone."
       />
     </>
   );

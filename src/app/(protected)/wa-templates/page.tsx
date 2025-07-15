@@ -52,7 +52,7 @@ const WaTemplatesPage = () => {
 
   const handleDelete = () => {
     if (templateToDelete) {
-      deleteMutation.mutate(templateToDelete.id, {
+      deleteMutation.mutate(String(templateToDelete.id), {
         onSuccess: () => {
           handleCloseConfirmDelete();
         },
