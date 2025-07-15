@@ -37,6 +37,9 @@ export const CALENDAR_DAY_HEADER_FORMAT = {
 export const DEFAULT_EVENT_BACKGROUND_COLOR = '#3788d8';
 export const DEFAULT_EVENT_BORDER_COLOR = '#2a6fb5';
 
+export const BLOCKED_SLOT_BACKGROUND_COLOR = '#e0e0e0';
+export const BLOCKED_SLOT_BORDER_COLOR = '#616161';
+
 export const DURATION_OPTIONS = [
   { value: 10, label: '10 min' },
   { value: 15, label: '15 min' },

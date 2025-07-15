@@ -20,9 +20,12 @@ import {
   FormControl,
   Switch,
   Autocomplete,
+  Snackbar,
+  Alert,
+  Checkbox,
 } from '@mui/material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
-import { setHours, parseISO } from 'date-fns';
+import { setHours, parseISO, startOfDay } from 'date-fns';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useForm, Controller } from 'react-hook-form';
@@ -37,7 +40,7 @@ import PatientFormDialog from '../patients/PatientFormDialog';
 import ProcedureFormDialog from '../procedures/ProcedureFormDialog';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { PatientFormData, ProcedureFormData } from '@/types';
-import { DURATION_OPTIONS, SMILE_MORE_CLINIC_NAME } from '@/config/constants';
+import { DURATION_OPTIONS, SMILE_MORE_CLINIC_NAME, CALENDAR_BUSINESS_HOURS } from '@/config/constants';
 
 interface AppointmentFormDialogProps {
   open: boolean;
@@ -82,10 +85,14 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   const selectedProcedureId = watch('procedure_id');
   const startTs = watch('start_ts');
   const endTs = watch('end_ts');
+  const status = watch('status');
 
   const [isPatientDialogOpen, setPatientDialogOpen] = useState(false);
   const [isProcedureDialogOpen, setProcedureDialogOpen] = useState(false);
   const [isConfirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
+  const [isBlockMode, setBlockMode] = useState(false);
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [errorSnackbar, setErrorSnackbar] = useState<string | null>(null);
 
   const isSubmitting = addAppointmentMutation.isPending || updateAppointmentMutation.isPending;
 
@@ -101,7 +108,39 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   };
 
   useEffect(() => {
-    if (selectedProcedureId && procedures) {
+    if (isBlockMode) {
+      setValue('status', 'blocked');
+      setValue('patient_id', null);
+      setValue('procedure_id', null);
+      setValue('cost', null);
+      setValue('tooth_num', null);
+      setValue('description', '');
+      setValue('send_notifications', false);
+      setValue('short_label', 'Blocked');
+      const smileMoreClinic = clinics?.find(c => c.name === SMILE_MORE_CLINIC_NAME);
+      if (smileMoreClinic) {
+        setValue('clinic_id', smileMoreClinic.id);
+      }
+    } else {
+      setValue('status', 'scheduled');
+      setValue('send_notifications', true);
+      setValue('short_label', '');
+    }
+  }, [isBlockMode, setValue, clinics]);
+
+  useEffect(() => {
+    if (isAllDay && isBlockMode) {
+        const currentStartDate = startTs ? new Date(startTs) : new Date();
+        const dayStart = setHours(startOfDay(currentStartDate), parseInt(CALENDAR_BUSINESS_HOURS.startTime.split(':')[0], 10));
+        const dayEnd = setHours(startOfDay(currentStartDate), parseInt(CALENDAR_BUSINESS_HOURS.endTime.split(':')[0], 10));
+        setValue('start_ts', dayStart.toISOString(), { shouldValidate: true });
+        setValue('end_ts', dayEnd.toISOString(), { shouldValidate: true });
+    }
+  }, [isAllDay, isBlockMode, startTs, setValue]);
+
+
+  useEffect(() => {
+    if (selectedProcedureId && procedures && !isBlockMode) {
       const procedure = procedures.find(p => p.id === selectedProcedureId);
       if (procedure) {
         if (procedure.default_duration_min) {
@@ -112,22 +151,20 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
         }
       }
     }
-  }, [selectedProcedureId, procedures, setValue]);
+  }, [selectedProcedureId, procedures, setValue, isBlockMode]);
 
   useEffect(() => {
-    if (selectedPatientId && selectedProcedureId && patients && procedures) {
+    if (selectedPatientId && selectedProcedureId && patients && procedures && !isBlockMode) {
       const patient = patients.find(p => p.id === selectedPatientId);
       const procedure = procedures.find(p => p.id === selectedProcedureId);
       if (patient && procedure) {
         const currentLabel = getValues('short_label');
-        // Auto-fill only if the label is empty or was previously auto-filled
-        // This check is simple, a more robust one might be needed if labels can be complex
         if (!currentLabel || currentLabel.includes(patient.last_name) || currentLabel.includes(procedure.name)) {
            setValue('short_label', `${patient.last_name} - ${procedure.name}`);
         }
       }
     }
-  }, [selectedPatientId, selectedProcedureId, patients, procedures, setValue, getValues]);
+  }, [selectedPatientId, selectedProcedureId, patients, procedures, setValue, getValues, isBlockMode]);
 
   const handleAddNewPatient = async (data: PatientFormData) => {
     const newPatient = await addPatientMutation.mutateAsync(data);
@@ -155,8 +192,12 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
         await addAppointmentMutation.mutateAsync(submissionData);
       }
       onClose();
-    } catch (error) {
-      // Proper error handling with user feedback (e.g., Snackbar) can be added here
+    } catch (error: any) {
+        if (error?.message?.includes('timeslot_is_already_booked')) {
+            setErrorSnackbar('This time slot is already booked. Please choose a different time.');
+        } else {
+            setErrorSnackbar('Failed to save the appointment. Please try again.');
+        }
       console.error("Failed to save appointment:", error);
     }
   };
@@ -171,60 +212,62 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
       try {
         await deleteAppointmentMutation.mutateAsync(appointment.id);
         setConfirmDeleteDialogOpen(false);
-        onClose(); // Close the main form dialog as well
+        onClose();
       } catch (error) {
         console.error("Failed to delete appointment", error);
-        // Optionally, show a snackbar error message
         setConfirmDeleteDialogOpen(false);
       }
     }
   };
 
   useEffect(() => {
-    if (open && profile) {
-      if (isEditMode && appointment) {
-        reset({
-          ...appointment,
-          start_ts: new Date(appointment.start_ts).toISOString(),
-          end_ts: new Date(appointment.end_ts).toISOString(),
-          clinic_id: String(appointment.clinic_id),
-          patient_id: String(appointment.patient_id),
-          procedure_id: String(appointment.procedure_id),
-          cost: appointment.cost ?? undefined,
-          tooth_num: appointment.tooth_num ?? '',
-          description: appointment.description ?? '',
-          status: appointment.status ?? 'scheduled',
-          short_label: appointment.short_label ?? '',
-          send_notifications: appointment.send_notifications ?? true,
-        });
-      } else {
-        const newAppointmentStart = defaultDateTime?.start || new Date();
-        const newAppointmentEnd = defaultDateTime?.end || new Date(newAppointmentStart.getTime() + 30 * 60000);
-        
-        let defaultClinicId = '';
-        if (profile.role === 'admin') {
-          const smileMoreClinic = clinics?.find(c => c.name === SMILE_MORE_CLINIC_NAME);
-          if (smileMoreClinic) {
-            defaultClinicId = smileMoreClinic.id;
-          }
-        } else {
-          defaultClinicId = profile.clinic_id || '';
-        }
+    if (open) {
+        const isBlocked = appointment?.status === 'blocked';
+        setBlockMode(isBlocked);
+        setIsAllDay(false); // Reset all-day switch
+        if (isEditMode && appointment) {
+            reset({
+                ...appointment,
+                start_ts: new Date(appointment.start_ts).toISOString(),
+                end_ts: new Date(appointment.end_ts).toISOString(),
+                clinic_id: String(appointment.clinic_id),
+                patient_id: appointment.patient_id ? String(appointment.patient_id) : null,
+                procedure_id: appointment.procedure_id ? String(appointment.procedure_id) : null,
+                cost: appointment.cost ?? undefined,
+                tooth_num: appointment.tooth_num ?? '',
+                description: appointment.description ?? '',
+                status: appointment.status ?? 'scheduled',
+                short_label: appointment.short_label ?? '',
+                send_notifications: appointment.send_notifications ?? true,
+            });
+        } else if (profile) {
+            const newAppointmentStart = defaultDateTime?.start || new Date();
+            const newAppointmentEnd = defaultDateTime?.end || new Date(newAppointmentStart.getTime() + 30 * 60000);
+            
+            let defaultClinicId = '';
+            if (profile.role === 'admin') {
+                const smileMoreClinic = clinics?.find(c => c.name === SMILE_MORE_CLINIC_NAME);
+                if (smileMoreClinic) {
+                    defaultClinicId = smileMoreClinic.id;
+                }
+            } else {
+                defaultClinicId = profile.clinic_id || '';
+            }
 
-        reset({
-          start_ts: newAppointmentStart.toISOString(),
-          end_ts: newAppointmentEnd.toISOString(),
-          status: 'scheduled',
-          short_label: '',
-          patient_id: '',
-          procedure_id: '',
-          cost: undefined,
-          description: '',
-          tooth_num: '',
-          clinic_id: defaultClinicId,
-          send_notifications: true,
-        });
-      }
+            reset({
+                start_ts: newAppointmentStart.toISOString(),
+                end_ts: newAppointmentEnd.toISOString(),
+                status: 'scheduled',
+                short_label: '',
+                patient_id: null,
+                procedure_id: null,
+                cost: undefined,
+                description: '',
+                tooth_num: '',
+                clinic_id: defaultClinicId,
+                send_notifications: true,
+            });
+        }
     }
   }, [open, isEditMode, appointment, defaultDateTime, reset, profile, clinics]);
 
@@ -265,7 +308,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            {isEditMode ? 'Edit Appointment' : 'New Appointment'}
+            {isEditMode ? (status === 'blocked' ? 'Edit Blocked Time' : 'Edit Appointment') : 'New Appointment'}
             {isEditMode && (
               <IconButton onClick={handleDelete} disabled={isSubmitting}>
                 <DeleteIcon />
@@ -280,10 +323,9 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
             ) : (
               <Grid container spacing={2} sx={{ pt: 1 }}>
                 <Controller name="end_ts" control={control} render={({ field }) => <input type="hidden" {...field} />} />
-                {profile?.role === 'admin' && (
+                {profile?.role === 'admin' && !(isBlockMode || status === 'blocked') && (
                   <Grid size={{ xs: 12 }}>
                     <FormControl component="fieldset" error={!!errors.clinic_id}>
-                      {/* <FormLabel component="legend">Clinic</FormLabel> */}
                       <Controller
                         name="clinic_id"
                         control={control}
@@ -305,65 +347,33 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                   </Grid>
                 )}
 
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Controller
-                    name="patient_id"
-                    control={control}
-                    render={({ field }) => (
-                      <Autocomplete
-                        options={patients || []}
-                        getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
-                        value={patients?.find(p => p.id === field.value) || null}
-                        onChange={(_, newValue) => {
-                          field.onChange(newValue ? newValue.id : '');
-                        }}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Patient"
-                            required
-                            error={!!errors.patient_id}
-                            helperText={errors.patient_id?.message}
-                          />
-                        )}
-                        renderOption={(props, option) => (
-                          <li {...props} key={option.id}>
-                            {`${option.first_name} ${option.last_name}`}
-                          </li>
-                        )}
-                        ListboxComponent={(props) => (
-                          <ul {...props}>
-                            {props.children}
-                            <Divider />
-                            <MenuItem onClick={() => setPatientDialogOpen(true)}>
-                              <AddCircleOutlineIcon sx={{ mr: 1 }} />
-                              Add New Patient
-                            </MenuItem>
-                          </ul>
-                        )}
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Controller
-                    name="procedure_id"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} select label="Procedure" fullWidth required error={!!errors.procedure_id} helperText={errors.procedure_id?.message}>
-                        {procedures?.map((p) => (
-                          <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                        ))}
-                         <Divider />
-                         <MenuItem onClick={() => setProcedureDialogOpen(true)}>
-                           <AddCircleOutlineIcon sx={{ mr: 1 }} />
-                           Add New Procedure
-                         </MenuItem>
-                      </TextField>
-                    )}
-                  />
-                </Grid>
+                {profile?.role === 'admin' && !isEditMode && (
+                  <Grid size={{ xs: 12 }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={isBlockMode}
+                          onChange={(e) => setBlockMode(e.target.checked)}
+                        />
+                      }
+                      label="Block Time Slot"
+                    />
+                  </Grid>
+                )}
+                
+                {isBlockMode && (
+                    <Grid size={{ xs: 12 }}>
+                        <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={isAllDay}
+                                onChange={(e) => setIsAllDay(e.target.checked)}
+                            />
+                        }
+                        label="All-day"
+                        />
+                    </Grid>
+                )}
 
                 <Grid size={{ xs: 12, sm: 4 }}>
                    <Controller
@@ -377,6 +387,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                           format="dd/MM/yyyy"
                           disablePast
                           slotProps={{ textField: { fullWidth: true } }}
+                          disabled={isAllDay}
                         />
                       )}
                     />
@@ -387,18 +398,37 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                       control={control}
                       render={({ field }) => (
                         <TimePicker
-                          label="Time"
+                          label="Start Time"
                           value={field.value ? parseISO(field.value) : null}
                           onChange={(date) => handleDateTimeChange(date, 'time')}
                           ampm={false}
-                          minTime={setHours(new Date(0), 8)}
-                          maxTime={setHours(new Date(0), 21)}
+                          minTime={setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.startTime.split(':')[0], 10))}
+                          maxTime={setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.endTime.split(':')[0], 10))}
                           slotProps={{ textField: { fullWidth: true, error: !!errors.start_ts, helperText: errors.start_ts?.message } }}
+                          disabled={isAllDay}
                         />
                       )}
                     />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
+                  {isBlockMode || status === 'blocked' ? (
+                    <Controller
+                      name="end_ts"
+                      control={control}
+                      render={({ field }) => (
+                        <TimePicker
+                          label="End Time"
+                          value={field.value ? parseISO(field.value) : null}
+                          onChange={(date) => setValue('end_ts', date?.toISOString() || '', { shouldValidate: true })}
+                          ampm={false}
+                          minTime={startTs ? parseISO(startTs) : setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.startTime.split(':')[0], 10))}
+                          maxTime={setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.endTime.split(':')[0], 10))}
+                          slotProps={{ textField: { fullWidth: true, error: !!errors.end_ts, helperText: errors.end_ts?.message } }}
+                          disabled={isAllDay}
+                        />
+                      )}
+                    />
+                  ) : (
                     <TextField
                       select
                       label="Duration"
@@ -414,72 +444,145 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                         </MenuItem>
                       ))}
                     </TextField>
+                  )}
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: 8 }}>
-                  <Controller
-                    name="short_label"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="Short Label (Optional)" fullWidth error={!!errors.short_label} helperText={errors.short_label?.message} />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <Controller
-                    name="tooth_num"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="Tooth #" fullWidth error={!!errors.tooth_num} helperText={errors.tooth_num?.message} />
-                    )}
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12 }}>
-                  <Controller
-                    name="description"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} label="Description" multiline rows={3} fullWidth error={!!errors.description} helperText={errors.description?.message} />
-                    )}
-                  />
-                </Grid>
-                
-                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <Controller
-                    name="cost"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        type="number"
-                        label="Cost"
-                        fullWidth
-                        error={!!errors.cost}
-                        helperText={errors.cost?.message}
-                        InputLabelProps={{ shrink: !!field.value || field.value === 0 }}
-                        value={field.value ?? ''}
-                      />
-                    )}
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControlLabel
-                    control={
+                {!(isBlockMode || status === 'blocked') && (
+                  <>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Controller
-                        name="send_notifications"
+                        name="patient_id"
                         control={control}
                         render={({ field }) => (
-                          <Switch {...field} checked={field.value} />
+                          <Autocomplete
+                            options={patients || []}
+                            getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
+                            value={patients?.find(p => p.id === field.value) || null}
+                            onChange={(_, newValue) => {
+                              field.onChange(newValue ? newValue.id : '');
+                            }}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                label="Patient"
+                                required
+                                error={!!errors.patient_id}
+                                helperText={errors.patient_id?.message}
+                              />
+                            )}
+                            renderOption={(props, option) => (
+                              <li {...props} key={option.id}>
+                                {`${option.first_name} ${option.last_name}`}
+                              </li>
+                            )}
+                            ListboxComponent={(props) => (
+                              <ul {...props}>
+                                {props.children}
+                                <Divider />
+                                <MenuItem onClick={() => setPatientDialogOpen(true)}>
+                                  <AddCircleOutlineIcon sx={{ mr: 1 }} />
+                                  Add New Patient
+                                </MenuItem>
+                              </ul>
+                            )}
+                          />
                         )}
                       />
-                    }
-                    label="Send Notifications"
-                  />
-                </Grid>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Controller
+                        name="procedure_id"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} select label="Procedure" fullWidth required error={!!errors.procedure_id} helperText={errors.procedure_id?.message}>
+                            {procedures?.map((p) => (
+                              <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                            ))}
+                             <Divider />
+                             <MenuItem onClick={() => setProcedureDialogOpen(true)}>
+                               <AddCircleOutlineIcon sx={{ mr: 1 }} />
+                               Add New Procedure
+                             </MenuItem>
+                          </TextField>
+                        )}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 8 }}>
+                      <Controller
+                        name="short_label"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} label="Short Label (Optional)" fullWidth error={!!errors.short_label} helperText={errors.short_label?.message} />
+                        )}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                      <Controller
+                        name="tooth_num"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} label="Tooth #" fullWidth error={!!errors.tooth_num} helperText={errors.tooth_num?.message} />
+                        )}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12 }}>
+                      <Controller
+                        name="description"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} label="Description" multiline rows={3} fullWidth error={!!errors.description} helperText={errors.description?.message} />
+                        )}
+                      />
+                    </Grid>
+                     <Grid size={{ xs: 12, sm: 6 }}>
+                      <Controller
+                        name="cost"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            type="number"
+                            label="Cost"
+                            fullWidth
+                            error={!!errors.cost}
+                            helperText={errors.cost?.message}
+                            InputLabelProps={{ shrink: !!field.value || field.value === 0 }}
+                            value={field.value ?? ''}
+                          />
+                        )}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <FormControlLabel
+                        control={
+                          <Controller
+                            name="send_notifications"
+                            control={control}
+                            render={({ field }) => (
+                              <Switch {...field} checked={field.value} />
+                            )}
+                          />
+                        }
+                        label="Send Notifications"
+                      />
+                    </Grid>
+                  </>
+                )}
+                
+                {(isBlockMode || status === 'blocked') && (
+                    <Grid size={{ xs: 12 }}>
+                        <Controller
+                            name="short_label"
+                            control={control}
+                            render={({ field }) => (
+                                <TextField {...field} label="Reason for blocking (optional)" fullWidth />
+                            )}
+                        />
+                    </Grid>
+                )}
 
-                {isEditMode && (
+                {isEditMode && !(isBlockMode || status === 'blocked') && (
                   <Grid size={{ xs: 12 }}>
                      <Controller
                         name="status"
@@ -505,6 +608,12 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
           </DialogActions>
         </form>
       </Dialog>
+
+      <Snackbar open={!!errorSnackbar} autoHideDuration={6000} onClose={() => setErrorSnackbar(null)}>
+        <Alert onClose={() => setErrorSnackbar(null)} severity="error" sx={{ width: '100%' }}>
+          {errorSnackbar}
+        </Alert>
+      </Snackbar>
 
       <PatientFormDialog
         open={isPatientDialogOpen}

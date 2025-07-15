@@ -16,7 +16,9 @@ import {
   CALENDAR_NON_WORKING_DAYS, 
   CALENDAR_SLOT_LABEL_FORMAT,
   DEFAULT_EVENT_BACKGROUND_COLOR,
-  DEFAULT_EVENT_BORDER_COLOR
+  DEFAULT_EVENT_BORDER_COLOR,
+  BLOCKED_SLOT_BACKGROUND_COLOR,
+  BLOCKED_SLOT_BORDER_COLOR
 } from '@/config/constants';
 
 const Calendar: React.FC = () => {
@@ -69,18 +71,35 @@ const Calendar: React.FC = () => {
   const events = useMemo(() => {
     if (!appointments) return CALENDAR_NON_WORKING_DAYS;
 
-    const appointmentEvents: EventInput[] = appointments.map(app => ({
-      id: String(app.id),
-      title: app.short_label,
-      start: app.start_ts,
-      end: app.end_ts,
-      backgroundColor: app.clinics?.color_hex || DEFAULT_EVENT_BACKGROUND_COLOR,
-      borderColor: app.procedures_catalog?.color_hex || DEFAULT_EVENT_BORDER_COLOR,
-      classNames: ['event-with-border'],
-      extendedProps: {
-        ...app
+    const appointmentEvents: EventInput[] = appointments.map(app => {
+      if (app.status === 'blocked') {
+        return {
+          id: String(app.id),
+          title: app.short_label,
+          start: app.start_ts,
+          end: app.end_ts,
+          backgroundColor: BLOCKED_SLOT_BACKGROUND_COLOR,
+          borderColor: BLOCKED_SLOT_BORDER_COLOR,
+          classNames: ['event-with-border'],
+          extendedProps: {
+            ...app
+          }
+        };
       }
-    }));
+      
+      return {
+        id: String(app.id),
+        title: app.short_label,
+        start: app.start_ts,
+        end: app.end_ts,
+        backgroundColor: app.clinics?.color_hex || DEFAULT_EVENT_BACKGROUND_COLOR,
+        borderColor: app.procedures_catalog?.color_hex || DEFAULT_EVENT_BORDER_COLOR,
+        classNames: ['event-with-border'],
+        extendedProps: {
+          ...app
+        }
+      };
+    });
     
     return [...CALENDAR_NON_WORKING_DAYS, ...appointmentEvents];
   }, [appointments]);
@@ -160,6 +179,7 @@ const Calendar: React.FC = () => {
         events={events}
         selectConstraint="businessHours"
         eventConstraint="businessHours"
+        allDaySlot={false}
         select={handleDateSelect}
         eventClick={handleEventClick}
       />
