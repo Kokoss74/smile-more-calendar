@@ -1,0 +1,21 @@
+{
+  "name": "Smile More Calendar",
+  "short_name": "SMC",
+  "description": "Dental Practice Management Calendar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3498db",
+  "icons": [
+    {
+      "src": "/logo_white.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo_black.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
