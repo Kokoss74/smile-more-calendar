@@ -12,11 +12,6 @@ import {
   Button,
   Snackbar,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   ListItemButton,
   Switch,
   FormControlLabel,
@@ -29,6 +24,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import {
   usePatients,
   useAddPatient,
@@ -210,23 +206,13 @@ export default function PatientsPage() {
         } : undefined}
       />
 
-      <Dialog
+      <ConfirmDialog
         open={isConfirmOpen}
         onClose={() => setConfirmOpen(false)}
-      >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure want to delete the patient &quot;{patientToDelete?.first_name} {patientToDelete?.last_name}&quot;? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeletePatient} color="error" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleDeletePatient}
+        title="Confirm Deletion"
+        description={`Are you sure want to delete the patient "${patientToDelete?.first_name} ${patientToDelete?.last_name}"? This action cannot be undone.`}
+      />
 
       <Snackbar
         open={snackbar.open}

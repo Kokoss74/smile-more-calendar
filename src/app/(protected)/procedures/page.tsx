@@ -12,16 +12,12 @@ import {
   Button,
   Snackbar,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   ListItemButton,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useProcedures, useAddProcedure, useUpdateProcedure, useDeleteProcedure } from '@/hooks/useProcedures';
 import ProcedureFormDialog from './ProcedureFormDialog';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { Procedure, ProcedureFormData } from '@/types';
 
 export default function ProceduresPage() {
@@ -143,23 +139,13 @@ export default function ProceduresPage() {
           default_cost: editingProcedure.default_cost,
         } : undefined}
       />
-      <Dialog
+      <ConfirmDialog
         open={isConfirmOpen}
         onClose={() => setConfirmOpen(false)}
-      >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure want to delete the procedure &quot;{procedureToDelete?.name}&quot;? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteProcedure} color="error" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleDeleteProcedure}
+        title="Confirm Deletion"
+        description={`Are you sure want to delete the procedure "${procedureToDelete?.name}"? This action cannot be undone.`}
+      />
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

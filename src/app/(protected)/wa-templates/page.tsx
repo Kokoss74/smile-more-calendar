@@ -12,11 +12,6 @@ import {
   ListItem,
   ListItemText,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Paper,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
@@ -24,6 +19,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useWaTemplates, useDeleteWaTemplate } from '@/hooks/useWaTemplates';
 import { WaTemplate } from '@/types';
 import WaTemplateFormDialog from './WaTemplateFormDialog';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 const WaTemplatesPage = () => {
   const { data: templates, isLoading, error } = useWaTemplates();
@@ -124,23 +120,13 @@ const WaTemplatesPage = () => {
         template={selectedTemplate}
       />
 
-      <Dialog
+      <ConfirmDialog
         open={confirmDeleteOpen}
         onClose={handleCloseConfirmDelete}
-      >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the template &quot;{templateToDelete?.code}&quot;? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseConfirmDelete}>Cancel</Button>
-          <Button onClick={handleDelete} color="error" disabled={deleteMutation.isPending}>
-            {deleteMutation.isPending ? <CircularProgress size={24} /> : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleDelete}
+        title="Confirm Deletion"
+        description={`Are you sure you want to delete the template "${templateToDelete?.code}"? This action cannot be undone.`}
+      />
     </Container>
   );
 };

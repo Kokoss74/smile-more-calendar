@@ -63,7 +63,7 @@ export const patientSchema = z.object({
 export type PatientFormData = z.infer<typeof patientSchema>;
 
 export interface WaTemplate {
-  id: number;
+  id: string;
   code: string;
   body_ru: string;
   body_il: string;

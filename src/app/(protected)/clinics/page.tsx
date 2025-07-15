@@ -12,16 +12,12 @@ import {
   Button,
   Snackbar,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   ListItemButton,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useClinics, useAddClinic, useUpdateClinic, useDeleteClinic } from '@/hooks/useClinics';
 import ClinicFormDialog from './ClinicFormDialog';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { Clinic, ClinicFormData } from '@/types';
 
 export default function ClinicsPage() {
@@ -140,23 +136,13 @@ export default function ClinicsPage() {
         onSubmit={handleSaveClinic}
         defaultValues={editingClinic ? { name: editingClinic.name, color_hex: editingClinic.color_hex } : undefined}
       />
-      <Dialog
+      <ConfirmDialog
         open={isConfirmOpen}
         onClose={() => setConfirmOpen(false)}
-      >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure want to delete the clinic &quot;{clinicToDelete?.name}&quot;? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteClinic} color="error" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleDeleteClinic}
+        title="Confirm Deletion"
+        description={`Are you sure want to delete the clinic "${clinicToDelete?.name}"? This action cannot be undone.`}
+      />
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
