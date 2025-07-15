@@ -58,6 +58,7 @@ export const patientSchema = z.object({
   medical_info: z.record(z.string(), z.unknown()).optional().nullable(),
   is_dispensary: z.boolean().default(false),
   notification_language_is_hebrew: z.boolean().default(false),
+  owner_id: z.uuid().nullable().optional(),
 });
 
 export type PatientFormData = z.infer<typeof patientSchema>;

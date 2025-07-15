@@ -32,7 +32,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppointmentFormData, appointmentSchema, AppointmentWithRelations } from '@/types';
 import { useAddAppointment, useUpdateAppointment, useDeleteAppointment } from '@/hooks/useAppointments';
-import { usePatients, useAddPatient } from '@/hooks/usePatients';
+import { usePatients, useAddPatient, useUpdatePatient } from '@/hooks/usePatients';
 import { useProcedures, useAddProcedure } from '@/hooks/useProcedures';
 import { useClinics } from '@/hooks/useClinics';
 import { useSessionStore } from '@/store/sessionStore';
@@ -56,7 +56,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   defaultDateTime,
 }) => {
   const isEditMode = !!appointment;
-  const { profile } = useSessionStore();
+  const { profile, user } = useSessionStore();
 
   const { data: patients, isLoading: isLoadingPatients } = usePatients({ sortBy: 'last_name', sortDirection: 'asc', isDispensary: null });
   const { data: procedures, isLoading: isLoadingProcedures } = useProcedures();
@@ -66,6 +66,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   const updateAppointmentMutation = useUpdateAppointment();
   const deleteAppointmentMutation = useDeleteAppointment();
   const addPatientMutation = useAddPatient();
+  const updatePatientMutation = useUpdatePatient();
   const addProcedureMutation = useAddProcedure();
 
   const {
@@ -167,7 +168,18 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   }, [selectedPatientId, selectedProcedureId, patients, procedures, setValue, getValues, isBlockMode]);
 
   const handleAddNewPatient = async (data: PatientFormData) => {
-    const newPatient = await addPatientMutation.mutateAsync(data);
+    // Phase 3.6: Set owner_id when admin creates a patient from the appointment form
+    const finalPatientData = { ...data, owner_id: null as string | null };
+
+    if (profile?.role === 'admin' && user && clinics) {
+      const selectedClinicId = getValues('clinic_id');
+      const smileMoreClinic = clinics.find(c => c.name === SMILE_MORE_CLINIC_NAME);
+      if (selectedClinicId === smileMoreClinic?.id) {
+        finalPatientData.owner_id = user.id;
+      }
+    }
+
+    const newPatient = await addPatientMutation.mutateAsync(finalPatientData);
     setValue('patient_id', newPatient.id, { shouldValidate: true });
     setPatientDialogOpen(false);
   };
@@ -185,6 +197,32 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
         cost: data.cost ? Number(data.cost) : undefined,
         clinic_id: data.clinic_id || profile?.clinic_id || '',
       };
+
+      // Phase 3.6: Update patient's owner_id based on clinic
+      if (profile?.role === 'admin' && user && submissionData.patient_id && clinics && patients) {
+        const smileMoreClinic = clinics.find(c => c.name === SMILE_MORE_CLINIC_NAME);
+        const patientToUpdate = patients.find(p => p.id === submissionData.patient_id);
+
+        if (patientToUpdate) {
+          const newOwnerId = submissionData.clinic_id === smileMoreClinic?.id ? user.id : null;
+
+          if (patientToUpdate.owner_id !== newOwnerId) {
+            // Create a valid PatientFormData object from the full Patient object
+            const { ...rest } = patientToUpdate;
+            const patientFormData: Omit<PatientFormData, 'owner_id'> & { owner_id: string | null } = {
+              ...rest,
+              patient_type: rest.patient_type || null,
+              owner_id: newOwnerId,
+            };
+            
+            // We don't need to await this, it can run in the background
+            updatePatientMutation.mutate({ 
+              id: patientToUpdate.id,
+              ...patientFormData,
+            });
+          }
+        }
+      }
 
       if (isEditMode && appointment) {
         await updateAppointmentMutation.mutateAsync({ id: appointment.id, ...submissionData });
