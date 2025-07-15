@@ -6,10 +6,10 @@ INSERT INTO public.clinics (name, color_hex) VALUES
 -- Seed data for the 'procedures_catalog' table
 -- Added default_duration_min and default_cost to align with Phase 3.2 refactoring.
 INSERT INTO public.procedures_catalog (name, color_hex, default_duration_min, default_cost) VALUES
-('Консультация', '#f1c40f', 30, 150.00),
-('Гигиена', '#1abc9c', 60, 450.00),
-('Лечение кариеса', '#9b59b6', 90, 800.00),
-('Лечение корневого канала', '#e67e22', 120, 1500.00);
+('Консультация', '#f1c40f', 30, 150),
+('Гигиена', '#1abc9c', 60, 450),
+('Лечение кариеса', '#9b59b6', 90, 800),
+('Лечение корневого канала', '#e67e22', 120, 1500);
 
 -- Seed data for the 'wa_templates' table
 INSERT INTO public.wa_templates (code, body_ru, body_il) VALUES
