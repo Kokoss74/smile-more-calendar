@@ -12,9 +12,21 @@ import {
   FormControlLabel,
   Switch,
   MenuItem,
+  Typography,
+  Box,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Paper,
+  CircularProgress,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
+import { usePatientAppointments } from '@/hooks/usePatientAppointments';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { format } from 'date-fns';
 import { PatientFormData, patientSchema } from '@/types';
 import { PATIENT_TYPES } from '@/config/constants';
 
@@ -22,10 +34,13 @@ interface PatientFormDialogProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: PatientFormData) => void;
-  defaultValues?: PatientFormData;
+  defaultValues?: PatientFormData & { id?: string };
 }
 
 export default function PatientFormDialog({ open, onClose, onSubmit, defaultValues }: PatientFormDialogProps) {
+  const patientId = defaultValues?.id;
+  const { data: appointments, isLoading: isLoadingAppointments } = usePatientAppointments(patientId);
+
   const {
     control,
     handleSubmit,
@@ -189,6 +204,48 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
               />
             </Grid>
           </Grid>
+
+          {defaultValues && (
+            <Box mt={4}>
+              <Typography variant="h6" gutterBottom>
+                Appointment History
+              </Typography>
+              {isLoadingAppointments ? (
+                <CircularProgress />
+              ) : (
+                <TableContainer component={Paper}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Procedure</TableCell>
+                        <TableCell>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {appointments && appointments.length > 0 ? (
+                        appointments.map((app) => (
+                          <TableRow key={app.id}>
+                            <TableCell>
+                              {format(new Date(app.start_ts), 'dd/MM/yyyy')}
+                            </TableCell>
+                            <TableCell>{app.procedures_catalog?.name || 'N/A'}</TableCell>
+                            <TableCell>{app.status}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center">
+                            No appointments found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
