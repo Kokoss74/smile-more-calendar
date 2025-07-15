@@ -78,6 +78,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
     shouldFocusError: true,
   });
 
+  const selectedPatientId = watch('patient_id');
   const selectedProcedureId = watch('procedure_id');
   const startTs = watch('start_ts');
   const endTs = watch('end_ts');
@@ -112,6 +113,21 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
       }
     }
   }, [selectedProcedureId, procedures, setValue]);
+
+  useEffect(() => {
+    if (selectedPatientId && selectedProcedureId && patients && procedures) {
+      const patient = patients.find(p => p.id === selectedPatientId);
+      const procedure = procedures.find(p => p.id === selectedProcedureId);
+      if (patient && procedure) {
+        const currentLabel = getValues('short_label');
+        // Auto-fill only if the label is empty or was previously auto-filled
+        // This check is simple, a more robust one might be needed if labels can be complex
+        if (!currentLabel || currentLabel.includes(patient.last_name) || currentLabel.includes(procedure.name)) {
+           setValue('short_label', `${patient.last_name} - ${procedure.name}`);
+        }
+      }
+    }
+  }, [selectedPatientId, selectedProcedureId, patients, procedures, setValue, getValues]);
 
   const handleAddNewPatient = async (data: PatientFormData) => {
     const newPatient = await addPatientMutation.mutateAsync(data);
