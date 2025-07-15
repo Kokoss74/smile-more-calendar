@@ -27,8 +27,7 @@ import { setHours, parseISO, startOfDay } from 'date-fns';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { AppointmentFormData, appointmentSchema as baseAppointmentSchema, AppointmentWithRelations } from '@/types';
+import { createAppointmentSchema, AppointmentDialogFormData, AppointmentWithRelations } from '@/types';
 import { useAddAppointment, useUpdateAppointment, useDeleteAppointment } from '@/hooks/useAppointments';
 import { usePatients, useAddPatient, useUpdatePatient } from '@/hooks/usePatients';
 import { useProcedures, useAddProcedure } from '@/hooks/useProcedures';
@@ -60,14 +59,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   const { profile, user } = useSessionStore();
   const isClinicStaff = profile?.role === 'clinic_staff';
 
-  const appointmentSchema = isClinicStaff
-    ? baseAppointmentSchema.extend({
-        short_label: z.string().min(1, 'Short label is required for staff.'),
-        patient_id: z.uuid().optional().nullable(),
-        procedure_id: z.uuid().optional().nullable(),
-        clinic_id: z.string().uuid().optional(),
-      })
-    : baseAppointmentSchema;
+  const appointmentSchema = createAppointmentSchema(isClinicStaff);
 
   const { data: patients, isLoading: isLoadingPatients } = usePatients({ sortBy: 'last_name', sortDirection: 'asc', isDispensary: null });
   const { data: procedures, isLoading: isLoadingProcedures } = useProcedures();
@@ -200,7 +192,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
     setProcedureDialogOpen(false);
   };
 
-  const onValid = async (data: AppointmentFormData) => {
+  const onValid = async (data: AppointmentDialogFormData) => {
     try {
       const clinicId = data.clinic_id || profile?.clinic_id;
 
@@ -306,14 +298,14 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
             const newAppointmentStart = defaultDateTime?.start || new Date();
             const newAppointmentEnd = defaultDateTime?.end || new Date(newAppointmentStart.getTime() + 30 * 60000);
             
-            let defaultClinicId = '';
+            let defaultClinicId: string | undefined = undefined;
             if (profile.role === 'admin') {
                 const smileMoreClinic = clinics?.find(c => c.name === SMILE_MORE_CLINIC_NAME);
                 if (smileMoreClinic) {
                     defaultClinicId = smileMoreClinic.id;
                 }
-            } else {
-                defaultClinicId = profile.clinic_id || '';
+            } else if (profile.clinic_id) {
+                defaultClinicId = profile.clinic_id;
             }
 
             reset({

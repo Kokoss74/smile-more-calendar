@@ -22,7 +22,7 @@ export default async function ProtectedLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, clinic_id")
     .eq("user_id", user.id)
     .single();
 
@@ -35,6 +35,7 @@ export default async function ProtectedLayout({
 
   const userProfile: Profile = {
     role: (profile?.role || "guest") as 'admin' | 'clinic_staff' | 'guest',
+    clinic_id: profile?.clinic_id || null,
   };
 
   return (

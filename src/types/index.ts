@@ -106,8 +106,8 @@ export interface AppointmentWithRelations extends Appointment {
 
 export const appointmentSchema = z.object({
   clinic_id: z.string().uuid({ message: "Clinic is required." }),
-  start_ts: z.string().datetime({ message: "Invalid start time." }),
-  end_ts: z.string().datetime({ message: "Invalid end time." }),
+  start_ts: z.iso.datetime({ message: "Invalid start time." }),
+  end_ts: z.iso.datetime({ message: "Invalid end time." }),
   patient_id: z.uuid({ message: "Patient is required." }).optional().nullable(),
   procedure_id: z.uuid({ message: "Procedure is required." }).optional().nullable(),
   short_label: z.string().optional(),
@@ -151,3 +151,14 @@ export const appointmentSchema = z.object({
 });
 
 export type AppointmentFormData = z.infer<typeof appointmentSchema>;
+
+export const createAppointmentSchema = (isClinicStaff: boolean) => isClinicStaff
+  ? appointmentSchema.extend({
+      short_label: z.string().min(1, 'Short label is required for staff.'),
+      patient_id: z.uuid().optional().nullable(),
+      procedure_id: z.uuid().optional().nullable(),
+      clinic_id: z.uuid().optional(),
+    })
+  : appointmentSchema;
+
+export type AppointmentDialogFormData = z.infer<ReturnType<typeof createAppointmentSchema>>;
