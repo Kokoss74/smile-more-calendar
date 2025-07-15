@@ -184,7 +184,9 @@ const Calendar: React.FC = () => {
         select={handleDateSelect}
         eventClick={handleEventClick}
         datesSet={(arg) => {
-          setDateRange({ start: arg.start, end: arg.end });
+          if (dateRange?.start?.getTime() !== arg.start.getTime() || dateRange?.end?.getTime() !== arg.end.getTime()) {
+            setDateRange({ start: arg.start, end: arg.end });
+          }
         }}
       />
       <AppointmentFormDialog
