@@ -20,57 +20,47 @@ export interface Procedure {
   color_hex: string;
   created_at: string;
   created_by: string; // user_id
+  default_duration_min?: number | null;
+  default_cost?: number | null;
 }
 
 export const procedureSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   color_hex: z.string().regex(/^#[0-9A-F]{6}$/i, { message: "Invalid hex color." }),
+  default_duration_min: z.coerce.number().int().positive({ message: "Duration must be a positive number." }).optional().nullable(),
+  default_cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
 });
 
 export type ProcedureFormData = z.infer<typeof procedureSchema>;
+
+export const PATIENT_TYPES = ['Взрослый', 'Ребёнок', 'Израильтянин', 'Близкий'] as const;
 
 export interface Patient {
   id: string;
   first_name: string;
   last_name: string;
   phone: string;
-  age: number | null;
+  patient_type: (typeof PATIENT_TYPES)[number] | null;
   notes: string | null;
   medical_info: Record<string, unknown> | null;
   is_dispensary: boolean;
   owner_id: string | null; // admin user_id
   created_at: string;
+  notification_language_is_hebrew: boolean;
 }
 
 export const patientSchema = z.object({
   first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
   last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
   phone: z.string().min(9, { message: "Phone number must be at least 9 digits." }),
-  age: z.coerce.number().int().positive().min(5, { message: "Age must be at least 5." }).max(120, { message: "Age must be at most 120." }).optional().nullable(),
+  patient_type: z.enum(PATIENT_TYPES).optional().nullable(),
   notes: z.string().optional().nullable(),
   medical_info: z.record(z.string(), z.unknown()).optional().nullable(),
   is_dispensary: z.boolean().default(false),
+  notification_language_is_hebrew: z.boolean().default(false),
 });
 
 export type PatientFormData = z.infer<typeof patientSchema>;
-
-export interface AppointmentTemplate {
-  id: string;
-  name: string;
-  default_duration_min: number;
-  default_procedure_id: string | null;
-  default_cost: number | null;
-  created_by: string; // user_id
-}
-
-export const appointmentTemplateSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  default_duration_min: z.coerce.number().int().positive({ message: "Duration must be a positive number." }),
-  default_procedure_id: z.string().uuid({ message: "Invalid procedure ID" }).optional().nullable(),
-  default_cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
-});
-
-export type AppointmentTemplateFormData = z.infer<typeof appointmentTemplateSchema>;
 
 export interface WaTemplate {
   id: number;
@@ -89,18 +79,18 @@ export const waTemplateSchema = z.object({
 export type WaTemplateFormData = z.infer<typeof waTemplateSchema>;
 
 export interface Appointment {
-  id: number;
-  clinic_id: number;
+  id: string;
+  clinic_id: string;
   start_ts: string;
   end_ts: string;
-  patient_id?: number;
+  patient_id?: string;
   short_label: string;
   status: 'scheduled' | 'completed' | 'canceled';
-  procedure_id?: number;
+  procedure_id?: string;
   cost?: number;
   tooth_num?: string;
   description?: string;
-  private: boolean;
+  send_notifications: boolean;
   created_by: string;
   updated_by: string;
   canceled_by?: string;
@@ -114,16 +104,17 @@ export interface AppointmentWithRelations extends Appointment {
 }
 
 export const appointmentSchema = z.object({
-  clinic_id: z.uuid({ message: "Clinic is required." }),
-  start_ts: z.iso.datetime({ message: "Invalid start time." }),
-  end_ts: z.iso.datetime({ message: "Invalid end time." }),
-  patient_id: z.uuid({ message: "Patient is required." }),
-  procedure_id: z.uuid({ message: "Procedure is required." }),
+  clinic_id: z.string().uuid({ message: "Clinic is required." }),
+  start_ts: z.string().datetime({ message: "Invalid start time." }),
+  end_ts: z.string().datetime({ message: "Invalid end time." }),
+  patient_id: z.string().uuid({ message: "Patient is required." }),
+  procedure_id: z.string().uuid({ message: "Procedure is required." }),
   short_label: z.string().optional(),
   status: z.enum(['scheduled', 'completed', 'canceled']),
   cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
   tooth_num: z.string().max(10, "Tooth number is too long.").optional().nullable(),
   description: z.string().optional().nullable(),
+  send_notifications: z.boolean().default(true),
 }).refine(data => new Date(data.start_ts) < new Date(data.end_ts), {
   message: "End time must be after start time.",
   path: ["end_ts"],
