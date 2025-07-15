@@ -76,13 +76,6 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   } = useForm({
     resolver: zodResolver(appointmentSchema),
     shouldFocusError: true,
-    defaultValues: {
-      short_label: '',
-      cost: undefined,
-      description: '',
-      tooth_num: '',
-      status: 'scheduled',
-    },
   });
 
   const selectedProcedureId = watch('procedure_id');
@@ -172,43 +165,41 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   };
 
   useEffect(() => {
-    if (!open) return;
-
-    if (isEditMode && appointment) {
-      reset({
-        ...appointment,
-        start_ts: new Date(appointment.start_ts).toISOString(),
-        end_ts: new Date(appointment.end_ts).toISOString(),
-        clinic_id: String(appointment.clinic_id),
-        patient_id: String(appointment.patient_id),
-        procedure_id: String(appointment.procedure_id),
-        cost: appointment.cost ?? undefined,
-        tooth_num: appointment.tooth_num ?? '',
-        description: appointment.description ?? '',
-        status: appointment.status ?? 'scheduled',
-        short_label: appointment.short_label ?? '',
-      });
-    } else {
-      const newAppointmentStart = defaultDateTime?.start || new Date();
-      const newAppointmentEnd = defaultDateTime?.end || new Date(newAppointmentStart.getTime() + 30 * 60000);
-      reset({
-        start_ts: newAppointmentStart.toISOString(),
-        end_ts: newAppointmentEnd.toISOString(),
-        status: 'scheduled',
-        short_label: '',
-        patient_id: '',
-        procedure_id: '',
-        cost: undefined,
-        description: '',
-        tooth_num: '',
-        clinic_id: profile?.clinic_id || '',
-      });
-      // Explicitly set clinic_id after reset to ensure it's not overridden
-      if (profile?.clinic_id) {
-        setValue('clinic_id', profile.clinic_id);
+    if (open && profile) {
+      if (isEditMode && appointment) {
+        reset({
+          ...appointment,
+          start_ts: new Date(appointment.start_ts).toISOString(),
+          end_ts: new Date(appointment.end_ts).toISOString(),
+          clinic_id: String(appointment.clinic_id),
+          patient_id: String(appointment.patient_id),
+          procedure_id: String(appointment.procedure_id),
+          cost: appointment.cost ?? undefined,
+          tooth_num: appointment.tooth_num ?? '',
+          description: appointment.description ?? '',
+          status: appointment.status ?? 'scheduled',
+          short_label: appointment.short_label ?? '',
+          send_notifications: appointment.send_notifications ?? true,
+        });
+      } else {
+        const newAppointmentStart = defaultDateTime?.start || new Date();
+        const newAppointmentEnd = defaultDateTime?.end || new Date(newAppointmentStart.getTime() + 30 * 60000);
+        reset({
+          start_ts: newAppointmentStart.toISOString(),
+          end_ts: newAppointmentEnd.toISOString(),
+          status: 'scheduled',
+          short_label: '',
+          patient_id: '',
+          procedure_id: '',
+          cost: undefined,
+          description: '',
+          tooth_num: '',
+          clinic_id: profile.clinic_id || '',
+          send_notifications: true,
+        });
       }
     }
-  }, [open, isEditMode, appointment, defaultDateTime, reset, profile, setValue]);
+  }, [open, isEditMode, appointment, defaultDateTime, reset, profile]);
 
   const handleDateTimeChange = (newDate: Date | null, field: 'date' | 'time') => {
     if (!newDate) return;
@@ -409,8 +400,32 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                     name="cost"
                     control={control}
                     render={({ field }) => (
-                      <TextField {...field} type="number" label="Cost" fullWidth error={!!errors.cost} helperText={errors.cost?.message} />
+                      <TextField
+                        {...field}
+                        type="number"
+                        label="Cost"
+                        fullWidth
+                        error={!!errors.cost}
+                        helperText={errors.cost?.message}
+                        InputLabelProps={{ shrink: !!field.value || field.value === 0 }}
+                        value={field.value ?? ''}
+                      />
                     )}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControlLabel
+                    control={
+                      <Controller
+                        name="send_notifications"
+                        control={control}
+                        render={({ field }) => (
+                          <Switch {...field} checked={field.value} />
+                        )}
+                      />
+                    }
+                    label="Send Notifications"
                   />
                 </Grid>
 
