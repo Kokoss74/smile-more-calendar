@@ -85,7 +85,7 @@ export interface Appointment {
   end_ts: string;
   patient_id?: string;
   short_label: string;
-  status: 'scheduled' | 'completed' | 'canceled';
+  status: 'scheduled' | 'completed' | 'canceled' | 'blocked';
   procedure_id?: string;
   cost?: number;
   tooth_num?: string;
@@ -107,18 +107,38 @@ export const appointmentSchema = z.object({
   clinic_id: z.string().uuid({ message: "Clinic is required." }),
   start_ts: z.string().datetime({ message: "Invalid start time." }),
   end_ts: z.string().datetime({ message: "Invalid end time." }),
-  patient_id: z.string().uuid({ message: "Patient is required." }),
-  procedure_id: z.string().uuid({ message: "Procedure is required." }),
+  patient_id: z.uuid({ message: "Patient is required." }).optional().nullable(),
+  procedure_id: z.uuid({ message: "Procedure is required." }).optional().nullable(),
   short_label: z.string().optional(),
-  status: z.enum(['scheduled', 'completed', 'canceled']),
+  status: z.enum(['scheduled', 'completed', 'canceled', 'blocked']),
   cost: z.coerce.number().positive({ message: "Cost must be a positive number." }).optional().nullable(),
   tooth_num: z.string().max(10, "Tooth number is too long.").optional().nullable(),
   description: z.string().optional().nullable(),
   send_notifications: z.boolean().default(true),
-}).refine(data => new Date(data.start_ts) < new Date(data.end_ts), {
+})
+.refine(data => new Date(data.start_ts) < new Date(data.end_ts), {
   message: "End time must be after start time.",
   path: ["end_ts"],
-}).refine(data => {
+})
+.refine(data => {
+  if (data.status !== 'blocked') {
+    return !!data.patient_id;
+  }
+  return true;
+}, {
+  message: "Patient is required.",
+  path: ["patient_id"],
+})
+.refine(data => {
+  if (data.status !== 'blocked') {
+    return !!data.procedure_id;
+  }
+  return true;
+}, {
+  message: "Procedure is required.",
+  path: ["procedure_id"],
+})
+.refine(data => {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return new Date(data.start_ts) >= now;
