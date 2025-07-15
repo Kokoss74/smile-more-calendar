@@ -1,67 +1,74 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import { Appointment, AppointmentFormData, AppointmentWithRelations, Patient } from '@/types';
+import { Appointment, AppointmentFormData, AppointmentWithRelations } from '@/types';
 import { useSessionStore } from '@/store/sessionStore';
 
 const supabase = createClient();
 
-interface AppointmentWithPatient extends AppointmentWithRelations {
-  patients: Pick<Patient, 'owner_id'> | null;
+// Describes the flat structure returned by the get_calendar_appointments RPC call
+interface RpcAppointment {
+  id: string;
+  clinic_id: string;
+  start_ts: string;
+  end_ts: string;
+  patient_id: string | null;
+  short_label: string;
+  status: 'scheduled' | 'completed' | 'canceled' | 'blocked';
+  procedure_id: string | null;
+  cost: number | null;
+  tooth_num: string | null;
+  description: string | null;
+  send_notifications: boolean;
+  created_by: string;
+  owner_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  clinic_name: string | null;
+  clinic_color: string | null;
+  procedure_name: string | null;
+  procedure_color: string | null;
 }
 
-const fetchAppointments = async (role: string | undefined, clinicId: string | null | undefined): Promise<AppointmentWithRelations[]> => {
-  let query = supabase
-    .from('appointments')
-    .select(`
-      *,
-      clinics ( color_hex ),
-      procedures_catalog ( color_hex ),
-      patients ( owner_id )
-    `)
-    .neq('status', 'canceled');
-
-  if (role === 'clinic_staff' && clinicId) {
-    query = query.eq('clinic_id', clinicId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching appointments:', error);
-    throw new Error(error.message);
-  }
-
-  if (role === 'clinic_staff') {
-    return (data as AppointmentWithPatient[]).map(apt => {
-      // If patient is private (has an owner_id), anonymize the appointment
-      if (apt.patients?.owner_id) {
-        return {
-          ...apt,
-          short_label: 'Время занято',
-          patient_id: undefined,
-          procedure_id: undefined,
-          cost: undefined,
-          tooth_num: undefined,
-          description: undefined,
-          send_notifications: false,
-        };
-      }
-      return apt;
-    });
-  }
-
-  return data || [];
-};
-
-export const useAppointments = () => {
+export const useAppointments = (startDate: Date, endDate: Date) => {
   const { profile } = useSessionStore();
-  const role = profile?.role;
-  const clinicId = profile?.clinic_id;
 
   return useQuery<AppointmentWithRelations[], Error>({
-    queryKey: ['appointments', role, clinicId],
-    queryFn: () => fetchAppointments(role, clinicId),
-    enabled: !!role, // Only fetch if the user profile is loaded
+    queryKey: ['appointments', startDate, endDate, profile?.role],
+    queryFn: async () => {
+      if (!profile || !startDate || !endDate) return [];
+
+      const { data, error } = await supabase.rpc('get_calendar_appointments', {
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+      });
+
+      if (error) {
+        console.error('Error fetching appointments via RPC:', error);
+        throw new Error(error.message);
+      }
+
+      // The RPC function returns a slightly different shape, so we map it to AppointmentWithRelations
+      return data.map((apt: RpcAppointment) => ({
+        ...apt,
+        patient: apt.patient_id ? {
+          id: apt.patient_id,
+          first_name: apt.first_name,
+          last_name: apt.last_name,
+          owner_id: apt.owner_id,
+        } : null,
+        clinic: apt.clinic_id ? {
+          id: apt.clinic_id,
+          name: apt.clinic_name,
+          color_hex: apt.clinic_color,
+        } : null,
+        procedure: apt.procedure_id ? {
+          id: apt.procedure_id,
+          name: apt.procedure_name,
+          color_hex: apt.procedure_color,
+        } : null,
+      })) as AppointmentWithRelations[];
+    },
+    enabled: !!profile && !!startDate && !!endDate,
   });
 };
 
