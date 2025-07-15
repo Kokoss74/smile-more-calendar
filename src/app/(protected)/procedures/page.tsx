@@ -136,7 +136,12 @@ export default function ProceduresPage() {
         open={isFormOpen}
         onClose={handleCloseForm}
         onSubmit={handleSaveProcedure}
-        defaultValues={editingProcedure ? { name: editingProcedure.name, color_hex: editingProcedure.color_hex } : undefined}
+        defaultValues={editingProcedure ? { 
+          name: editingProcedure.name, 
+          color_hex: editingProcedure.color_hex,
+          default_duration_min: editingProcedure.default_duration_min,
+          default_cost: editingProcedure.default_cost,
+        } : undefined}
       />
       <Dialog
         open={isConfirmOpen}
