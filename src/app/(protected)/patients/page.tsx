@@ -4,33 +4,22 @@ import React, { useState } from 'react';
 import {
   Typography,
   Box,
-  CircularProgress,
-  Alert,
-  List,
-  ListItem,
-  ListItemText,
   Button,
   Snackbar,
-  IconButton,
-  ListItemButton,
   Switch,
   FormControlLabel,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Grid,
-  Tooltip,
+  TextField,
+  Alert,
+  ButtonGroup,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import StarIcon from '@mui/icons-material/Star';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import PatientsListContainer from './PatientsListContainer';
 import {
-  usePatients,
   useAddPatient,
   useUpdatePatient,
   useDeletePatient,
   SortOption,
+  SortDirection,
 } from '@/hooks/usePatients';
 import PatientFormDialog from './PatientFormDialog';
 import { Patient, PatientFormData } from '@/types';
@@ -41,7 +30,9 @@ export default function PatientsPage() {
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isDispensary, setIsDispensary] = useState<boolean | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -49,7 +40,6 @@ export default function PatientsPage() {
     severity: 'success',
   });
 
-  const { data: patients, isLoading, isError, error } = usePatients({ sortBy, isDispensary });
   const addPatientMutation = useAddPatient();
   const updatePatientMutation = useUpdatePatient();
   const deletePatientMutation = useDeletePatient();
@@ -105,13 +95,14 @@ export default function PatientsPage() {
     setIsDispensary(event.target.checked ? true : null);
   };
 
-  if (isLoading) {
-    return <CircularProgress />;
-  }
-
-  if (isError) {
-    return <Alert severity="error">Error fetching patients: {error.message}</Alert>;
-  }
+  const handleSortChange = (newSortBy: SortOption) => {
+    if (sortBy === newSortBy) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortDirection('asc');
+    }
+  };
 
   return (
     <Box>
@@ -124,77 +115,50 @@ export default function PatientsPage() {
         </Button>
       </Box>
 
-      <Grid container spacing={2} sx={{ mb: 2 }} alignItems="center">
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <FormControl fullWidth>
-            <InputLabel id="sort-by-label">Sort By</InputLabel>
-            <Select
-              labelId="sort-by-label"
-              value={sortBy}
-              label="Sort By"
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-            >
-              <MenuItem value="created_at">Creation Date</MenuItem>
-              <MenuItem value="last_name">Last Name</MenuItem>
-              <MenuItem value="first_name">First Name</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 8 }}>
-          <FormControlLabel
-            control={<Switch checked={isDispensary === true} onChange={handleDispensaryToggle} />}
-            label="Show only Dispensary Group"
-          />
-        </Grid>
-      </Grid>
-
-      <List>
-        {patients?.map((patient) => (
-          <ListItem
-            key={patient.id}
-            disablePadding
-            sx={{ border: '1px solid #ddd', mb: 1, borderRadius: '4px' }}
-            secondaryAction={
-              <IconButton edge="end" aria-label="delete" onClick={(e) => openDeleteConfirm(e, patient)}>
-                <DeleteIcon />
-              </IconButton>
-            }
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2, alignItems: 'center' }}>
+        <TextField
+          label="Search by Name or Phone"
+          variant="outlined"
+          size="small"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ flexGrow: 1, minWidth: '200px' }}
+        />
+        <ButtonGroup variant="outlined" size="small" aria-label="sort-by-buttons">
+          <Button
+            onClick={() => handleSortChange('last_name')}
+            variant={sortBy === 'last_name' ? 'contained' : 'outlined'}
           >
-            <ListItemButton onClick={() => handleOpenForm(patient)}>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {patient.is_dispensary && (
-                      <Tooltip title="Dispensary Group">
-                        <StarIcon sx={{ color: 'gold' }} />
-                      </Tooltip>
-                    )}
-                    <Typography component="span" variant="body1">
-                      {`${patient.last_name} ${patient.first_name}`}
-                    </Typography>
-                    <Tooltip title={`Notification language: ${patient.notification_language_is_hebrew ? 'Hebrew' : 'Russian'}`}>
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'grey.400',
-                          borderRadius: '4px',
-                          px: 0.5,
-                          ml: 'auto',
-                        }}
-                      >
-                        {patient.notification_language_is_hebrew ? 'HE' : 'RU'}
-                      </Typography>
-                    </Tooltip>
-                  </Box>
-                }
-                secondary={`${patient.patient_type} | ${patient.phone} | Added: ${new Date(patient.created_at).toLocaleDateString('en-GB')}`}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+            Last Name {sortBy === 'last_name' && (sortDirection === 'asc' ? '▲' : '▼')}
+          </Button>
+          <Button
+            onClick={() => handleSortChange('first_name')}
+            variant={sortBy === 'first_name' ? 'contained' : 'outlined'}
+          >
+            First Name {sortBy === 'first_name' && (sortDirection === 'asc' ? '▲' : '▼')}
+          </Button>
+           <Button
+            onClick={() => handleSortChange('created_at')}
+            variant={sortBy === 'created_at' ? 'contained' : 'outlined'}
+          >
+            Date {sortBy === 'created_at' && (sortDirection === 'asc' ? '▲' : '▼')}
+          </Button>
+        </ButtonGroup>
+        <FormControlLabel
+          control={<Switch checked={isDispensary === true} onChange={handleDispensaryToggle} />}
+          label="Dispensary Only"
+          sx={{ mr: 0 }}
+        />
+      </Box>
+
+      <PatientsListContainer
+        searchQuery={searchQuery}
+        sortBy={sortBy}
+        sortDirection={sortDirection}
+        isDispensary={isDispensary}
+        onEdit={handleOpenForm}
+        onDelete={openDeleteConfirm}
+      />
 
       <PatientFormDialog
         open={isFormOpen}

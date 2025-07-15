@@ -7,14 +7,17 @@ import { Patient, PatientFormData } from '@/types';
 const supabase = createClient();
 
 export type SortOption = 'created_at' | 'first_name' | 'last_name';
+export type SortDirection = 'asc' | 'desc';
 
 interface FetchPatientsParams {
   sortBy: SortOption;
+  sortDirection: SortDirection;
   isDispensary: boolean | null;
+  searchQuery?: string;
 }
 
 // Fetch patients with sorting and filtering
-const fetchPatients = async ({ sortBy, isDispensary }: FetchPatientsParams): Promise<Patient[]> => {
+const fetchPatients = async ({ sortBy, sortDirection, isDispensary, searchQuery }: FetchPatientsParams): Promise<Patient[]> => {
   let query = supabase
     .from('patients')
     .select('*');
@@ -23,7 +26,12 @@ const fetchPatients = async ({ sortBy, isDispensary }: FetchPatientsParams): Pro
     query = query.eq('is_dispensary', isDispensary);
   }
 
-  query = query.order(sortBy, { ascending: sortBy !== 'created_at' });
+  if (searchQuery) {
+    const searchPattern = `%${searchQuery}%`;
+    query = query.or(`first_name.ilike.${searchPattern},last_name.ilike.${searchPattern},phone.ilike.${searchPattern}`);
+  }
+
+  query = query.order(sortBy, { ascending: sortDirection === 'asc' });
 
   const { data, error } = await query;
 
