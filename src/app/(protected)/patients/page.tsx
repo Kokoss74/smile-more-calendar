@@ -167,16 +167,33 @@ export default function PatientsPage() {
             <ListItemButton onClick={() => handleOpenForm(patient)}>
               <ListItemText
                 primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {patient.is_dispensary && (
                       <Tooltip title="Dispensary Group">
-                        <StarIcon sx={{ color: 'gold', mr: 1 }} />
+                        <StarIcon sx={{ color: 'gold' }} />
                       </Tooltip>
                     )}
-                    {`${patient.last_name} ${patient.first_name}`}
+                    <Typography component="span" variant="body1">
+                      {`${patient.last_name} ${patient.first_name}`}
+                    </Typography>
+                    <Tooltip title={`Notification language: ${patient.notification_language_is_hebrew ? 'Hebrew' : 'Russian'}`}>
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'grey.400',
+                          borderRadius: '4px',
+                          px: 0.5,
+                          ml: 'auto',
+                        }}
+                      >
+                        {patient.notification_language_is_hebrew ? 'HE' : 'RU'}
+                      </Typography>
+                    </Tooltip>
                   </Box>
                 }
-                secondary={`Phone: ${patient.phone} | Age: ${patient.age ?? 'N/A'} | Added: ${new Date(patient.created_at).toLocaleDateString('en-GB')}`}
+                secondary={`${patient.patient_type} | ${patient.phone} | Added: ${new Date(patient.created_at).toLocaleDateString('en-GB')}`}
               />
             </ListItemButton>
           </ListItem>
@@ -188,12 +205,8 @@ export default function PatientsPage() {
         onClose={handleCloseForm}
         onSubmit={handleSavePatient}
         defaultValues={editingPatient ? {
-          first_name: editingPatient.first_name,
-          last_name: editingPatient.last_name,
-          phone: editingPatient.phone,
-          age: editingPatient.age,
-          notes: editingPatient.notes,
-          is_dispensary: editingPatient.is_dispensary,
+          ...editingPatient,
+          notes: editingPatient.notes ?? null,
         } : undefined}
       />
 
