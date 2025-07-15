@@ -14,6 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body>
         <ThemeRegistry>{children}</ThemeRegistry>
       </body>
