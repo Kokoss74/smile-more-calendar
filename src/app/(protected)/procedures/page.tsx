@@ -119,14 +119,14 @@ export default function ProceduresPage() {
             }
           >
             <ListItemButton onClick={() => handleOpenForm(procedure)}>
-              <ListItemText 
-                primary={procedure.name} 
-                secondary={
-                  <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                    Color: 
-                    <Box component="span" sx={{ width: 16, height: 16, backgroundColor: procedure.color_hex, ml: 1, border: '1px solid #ccc' }} />
+              <ListItemText
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {procedure.name}
+                    <Box component="span" sx={{ width: 16, height: 16, backgroundColor: procedure.color_hex, mx: 1.5, border: '1px solid #ccc', borderRadius: '4px' }} />
                   </Box>
                 }
+                secondary={`${procedure.default_duration_min ? `${procedure.default_duration_min} min` : 'N/A'} | ${procedure.default_cost ? `${procedure.default_cost}₪` : 'N/A'}`}
               />
             </ListItemButton>
           </ListItem>
