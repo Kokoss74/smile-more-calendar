@@ -45,3 +45,10 @@ export const DURATION_OPTIONS = [
   { value: 120, label: '2 hours' },
   { value: 150, label: '2.5 hours' },
 ];
+
+export const PATIENT_TYPES = [
+  'Взрослый',
+  'Ребёнок',
+  'Израильтянин',
+  'Близкий',
+];

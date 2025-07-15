@@ -11,10 +11,12 @@ import {
   Grid,
   FormControlLabel,
   Switch,
+  MenuItem,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientFormData, patientSchema } from '@/types';
+import { PATIENT_TYPES } from '@/config/constants';
 
 interface PatientFormDialogProps {
   open: boolean;
@@ -35,9 +37,10 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
       first_name: '',
       last_name: '',
       phone: '',
-      age: null,
+      patient_type: 'Взрослый',
       notes: null,
       is_dispensary: false,
+      notification_language_is_hebrew: false,
     },
   });
 
@@ -47,9 +50,10 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
         first_name: '',
         last_name: '',
         phone: '',
-        age: null,
+        patient_type: 'Взрослый',
         notes: null,
         is_dispensary: false,
+        notification_language_is_hebrew: false,
       });
     }
   }, [open, defaultValues, reset]);
@@ -118,21 +122,25 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <Controller
-                name="age"
+                name="patient_type"
                 control={control}
                 render={({ field }) => (
                   <TextField
                     {...field}
+                    select
                     margin="dense"
-                    label="Age"
-                    type="number"
+                    label="Patient Type"
                     fullWidth
                     variant="outlined"
-                    error={!!errors.age}
-                    helperText={errors.age?.message}
-                    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                    value={field.value ?? ''}
-                  />
+                    error={!!errors.patient_type}
+                    helperText={errors.patient_type?.message}
+                  >
+                    {PATIENT_TYPES.map((type) => (
+                      <MenuItem key={type} value={type}>
+                        {type}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 )}
               />
             </Grid>
@@ -156,7 +164,7 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
                 )}
               />
             </Grid>
-            <Grid size={12}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Controller
                 name="is_dispensary"
                 control={control}
@@ -164,6 +172,18 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
                   <FormControlLabel
                     control={<Switch {...field} checked={field.value} />}
                     label="Dispensary Group"
+                  />
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Controller
+                name="notification_language_is_hebrew"
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={<Switch {...field} checked={field.value} />}
+                    label="Notifications in Hebrew"
                   />
                 )}
               />
