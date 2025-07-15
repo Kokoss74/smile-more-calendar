@@ -45,7 +45,7 @@ export const useAddAppointment = () => {
   });
 };
 
-const updateAppointment = async ({ id, ...appointment }: Partial<AppointmentFormData> & { id: number }): Promise<Appointment> => {
+const updateAppointment = async ({ id, ...appointment }: Partial<AppointmentFormData> & { id: string }): Promise<Appointment> => {
   const { data, error } = await supabase.from('appointments').update(appointment).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   return data;
@@ -61,7 +61,7 @@ export const useUpdateAppointment = () => {
   });
 };
 
-const deleteAppointment = async (id: number): Promise<void> => {
+const deleteAppointment = async (id: string): Promise<void> => {
   const { error } = await supabase.from('appointments').delete().eq('id', id);
   if (error) throw new Error(error.message);
 };

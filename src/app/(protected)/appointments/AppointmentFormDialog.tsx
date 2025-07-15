@@ -32,7 +32,6 @@ import { usePatients, useAddPatient } from '@/hooks/usePatients';
 import { useProcedures, useAddProcedure } from '@/hooks/useProcedures';
 import { useClinics } from '@/hooks/useClinics';
 import { useSessionStore } from '@/store/sessionStore';
-import { useAppointmentTemplates } from '@/hooks/useAppointmentTemplates';
 import PatientFormDialog from '../patients/PatientFormDialog';
 import ProcedureFormDialog from '../procedures/ProcedureFormDialog';
 import { PatientFormData, ProcedureFormData } from '@/types';
@@ -57,7 +56,6 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   const { data: patients, isLoading: isLoadingPatients } = usePatients({ sortBy: 'created_at', isDispensary: null });
   const { data: procedures, isLoading: isLoadingProcedures } = useProcedures();
   const { data: clinics, isLoading: isLoadingClinics } = useClinics();
-  const { data: templates } = useAppointmentTemplates();
 
   const addAppointmentMutation = useAddAppointment();
   const updateAppointmentMutation = useUpdateAppointment();
@@ -106,17 +104,18 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   };
 
   useEffect(() => {
-    if (selectedProcedureId && templates) {
-      const procedureId = getValues('procedure_id');
-      const template = templates.find(t => t.default_procedure_id === procedureId);
-      if (template) {
-        handleDurationChange(template.default_duration_min);
-        if (template.default_cost) {
-          setValue('cost', template.default_cost);
+    if (selectedProcedureId && procedures) {
+      const procedure = procedures.find(p => p.id === selectedProcedureId);
+      if (procedure) {
+        if (procedure.default_duration_min) {
+          handleDurationChange(procedure.default_duration_min);
+        }
+        if (procedure.default_cost) {
+          setValue('cost', Number(procedure.default_cost));
         }
       }
     }
-  }, [selectedProcedureId, templates, setValue, getValues]);
+  }, [selectedProcedureId, procedures, setValue]);
 
   const handleAddNewPatient = async (data: PatientFormData) => {
     const newPatient = await addPatientMutation.mutateAsync(data);
@@ -253,29 +252,30 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
             ) : (
               <Grid container spacing={2} sx={{ pt: 1 }}>
                 <Controller name="end_ts" control={control} render={({ field }) => <input type="hidden" {...field} />} />
-                <Grid size={{ xs: 12 }}>
-                  <FormControl component="fieldset" error={!!errors.clinic_id}>
-                    <FormLabel component="legend">Clinic</FormLabel>
-                    <Controller
-                      name="clinic_id"
-                      control={control}
-                      render={({ field }) => (
-                        <RadioGroup {...field} row>
-                          {clinics?.map((clinic) => (
-                            <FormControlLabel
-                              key={clinic.id}
-                              value={clinic.id}
-                              control={<Radio />}
-                              label={clinic.name}
-                              disabled={profile?.role !== 'admin'}
-                            />
-                          ))}
-                        </RadioGroup>
-                      )}
-                    />
-                    {errors.clinic_id && <p style={{ color: '#d32f2f', fontSize: '0.75rem', margin: '3px 14px 0' }}>{errors.clinic_id.message}</p>}
-                  </FormControl>
-                </Grid>
+                {profile?.role === 'admin' && (
+                  <Grid size={{ xs: 12 }}>
+                    <FormControl component="fieldset" error={!!errors.clinic_id}>
+                      <FormLabel component="legend">Clinic</FormLabel>
+                      <Controller
+                        name="clinic_id"
+                        control={control}
+                        render={({ field }) => (
+                          <RadioGroup {...field} row>
+                            {clinics?.map((clinic) => (
+                              <FormControlLabel
+                                key={clinic.id}
+                                value={clinic.id}
+                                control={<Radio />}
+                                label={clinic.name}
+                              />
+                            ))}
+                          </RadioGroup>
+                        )}
+                      />
+                      {errors.clinic_id && <p style={{ color: '#d32f2f', fontSize: '0.75rem', margin: '3px 14px 0' }}>{errors.clinic_id.message}</p>}
+                    </FormControl>
+                  </Grid>
+                )}
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Controller
@@ -324,6 +324,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                           value={field.value ? parseISO(field.value) : null}
                           onChange={(date) => handleDateTimeChange(date, 'date')}
                           format="dd/MM/yyyy"
+                          disablePast
                           slotProps={{ textField: { fullWidth: true } }}
                         />
                       )}

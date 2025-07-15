@@ -38,6 +38,7 @@ export const DEFAULT_EVENT_BACKGROUND_COLOR = '#3788d8';
 export const DEFAULT_EVENT_BORDER_COLOR = '#2a6fb5';
 
 export const DURATION_OPTIONS = [
+  { value: 10, label: '10 min' },
   { value: 15, label: '15 min' },
   { value: 30, label: '30 min' },
   { value: 60, label: '1 hour' },
