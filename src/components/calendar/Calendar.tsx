@@ -40,12 +40,6 @@ const Calendar: React.FC = () => {
     }
   }, [fetchedAppointments]);
 
-  const handleSaveAppointment = (updatedAppointment: AppointmentWithRelations) => {
-    setLocalAppointments(prev => 
-      prev.map(app => app.id === updatedAppointment.id ? updatedAppointment : app)
-    );
-  };
-
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     const { start, end, view } = selectInfo;
     const now = new Date();
@@ -232,7 +226,6 @@ const Calendar: React.FC = () => {
       <AppointmentFormDialog
         open={dialogOpen}
         onClose={handleDialogClose}
-        onSave={handleSaveAppointment}
         appointment={selectedAppointment}
         defaultDateTime={selectedSlot}
       />
