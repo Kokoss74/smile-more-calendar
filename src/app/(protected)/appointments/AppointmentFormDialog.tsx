@@ -18,7 +18,6 @@ import {
   Radio,
   Divider,
   FormControl,
-  FormLabel,
   Switch,
 } from '@mui/material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
@@ -37,7 +36,7 @@ import PatientFormDialog from '../patients/PatientFormDialog';
 import ProcedureFormDialog from '../procedures/ProcedureFormDialog';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { PatientFormData, ProcedureFormData } from '@/types';
-import { DURATION_OPTIONS } from '@/config/constants';
+import { DURATION_OPTIONS, SMILE_MORE_CLINIC_NAME } from '@/config/constants';
 
 interface AppointmentFormDialogProps {
   open: boolean;
@@ -184,6 +183,17 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
       } else {
         const newAppointmentStart = defaultDateTime?.start || new Date();
         const newAppointmentEnd = defaultDateTime?.end || new Date(newAppointmentStart.getTime() + 30 * 60000);
+        
+        let defaultClinicId = '';
+        if (profile.role === 'admin') {
+          const smileMoreClinic = clinics?.find(c => c.name === SMILE_MORE_CLINIC_NAME);
+          if (smileMoreClinic) {
+            defaultClinicId = smileMoreClinic.id;
+          }
+        } else {
+          defaultClinicId = profile.clinic_id || '';
+        }
+
         reset({
           start_ts: newAppointmentStart.toISOString(),
           end_ts: newAppointmentEnd.toISOString(),
@@ -194,12 +204,12 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
           cost: undefined,
           description: '',
           tooth_num: '',
-          clinic_id: profile.clinic_id || '',
+          clinic_id: defaultClinicId,
           send_notifications: true,
         });
       }
     }
-  }, [open, isEditMode, appointment, defaultDateTime, reset, profile]);
+  }, [open, isEditMode, appointment, defaultDateTime, reset, profile, clinics]);
 
   const handleDateTimeChange = (newDate: Date | null, field: 'date' | 'time') => {
     if (!newDate) return;
@@ -256,7 +266,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                 {profile?.role === 'admin' && (
                   <Grid size={{ xs: 12 }}>
                     <FormControl component="fieldset" error={!!errors.clinic_id}>
-                      <FormLabel component="legend">Clinic</FormLabel>
+                      {/* <FormLabel component="legend">Clinic</FormLabel> */}
                       <Controller
                         name="clinic_id"
                         control={control}

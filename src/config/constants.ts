@@ -53,3 +53,5 @@ export const PATIENT_TYPES = [
   'Израильтянин',
   'Близкий',
 ];
+
+export const SMILE_MORE_CLINIC_NAME = 'Smile More Clinic';
