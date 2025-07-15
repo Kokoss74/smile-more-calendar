@@ -1,6 +1,6 @@
 
 # Smile More Calendar
-### Архитектурный документ • версия 2.1 (финальная) • 2025-07-14
+### Архитектурный документ • версия 3.1 (актуальная) • 2025-07-15
 
 Этот документ является единым и финальным источником требований и технических решений для разработки web-приложения учёта пациентов и расписания врача-стоматолога в Израиле с приоритетом на использование на мобильных устройствах (**Mobile-First**).
 
@@ -61,8 +61,6 @@ erDiagram
   patients ||--o{ appointments : attends
   procedures_catalog ||--o{ appointments : "classified as"
   patients ||--o{ patient_files : has
-  appointment_templates ||--o{ appointments : "created from"
-  procedures_catalog ||--o| appointment_templates : "has default"
   wa_templates ||--o{ wa_outbox : "uses"
   patients ||--o{ wa_outbox : "receives"
 ```
@@ -73,11 +71,10 @@ erDiagram
 |---------|---------------|
 | **clinics** | `id PK`, `name`, `color_hex` |
 | **profiles** | `user_id PK ← users.id`, `role text`, `clinic_id FK?` |
-| **procedures_catalog** | `id PK`, `name`, `color_hex`, `created_by FK` |
-| **appointment_templates** | `id PK`, `name`, `default_duration_min int`, `default_procedure_id FK?`, `default_cost numeric(10,2)?`, `created_by FK` |
-| **patients** | `id PK`, `first_name`, `last_name`, `phone`, `age int`, `notes text`, `medical_info jsonb`, `is_dispensary boolean`, `owner_id FK (admin) NULL`, `created_at` |
+| **procedures_catalog** | `id PK`, `name`, `color_hex`, `created_by FK`, `default_duration_min int`, `default_cost numeric(10,2)` |
+| **patients** | `id PK`, `first_name`, `last_name`, `phone`, `patient_type text`, `notes text`, `medical_info jsonb`, `is_dispensary boolean`, `notification_language_is_hebrew boolean`, `owner_id FK (admin) NULL`, `created_at` |
 | **patient_files** | `id PK`, `patient_id FK`, `file_url`, `mime`, `size`, `uploaded_by FK`, `created_at` |
-| **appointments** | `id PK`, `clinic_id FK`, `start_ts`, `end_ts`, `patient_id FK NULL`, `short_label text`, `status enum(scheduled, completed, canceled)`, `procedure_id FK NULL`, `cost numeric(10,2)`, `tooth_num varchar(10)`, `description text`, `private boolean default true`, `created_by FK`, `updated_by FK`, `canceled_by FK?`, `created_at`, `updated_at` |
+| **appointments** | `id PK`, `clinic_id FK`, `start_ts`, `end_ts`, `patient_id FK NULL`, `short_label text`, `status enum(scheduled, completed, canceled, blocked)`, `procedure_id FK NULL`, `cost numeric(10,2)`, `tooth_num varchar(10)`, `description text`, `send_notifications boolean default true`, `created_by FK`, `updated_by FK`, `canceled_by FK?`, `created_at`, `updated_at` |
 | **wa_templates** | `id PK`, `code text UNIQUE`, `body_ru text`, `body_il text`, `created_at` |
 | **wa_outbox** | `id PK`, `appointment_id FK?`, `patient_id FK`, `template_code text`, `payload jsonb`, `sent_at timestamptz`, `status enum(pending, sent, failed)`, `error_message text` |
 
@@ -152,7 +149,7 @@ create policy "Allow staff to read appointments of their clinic" on public.appoi
 );
 create policy "Allow staff to insert appointments for their clinic" on public.appointments for insert with check ( 
   exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
-  and private = false and patient_id is null 
+  and send_notifications = false and patient_id is null 
 );
 create policy "Allow staff to update status to canceled" on public.appointments for update using ( 
   exists(select 1 from public.profiles where user_id = auth.uid() and role = 'clinic_staff' and clinic_id = appointments.clinic_id) 
@@ -198,8 +195,8 @@ FOR EACH ROW EXECUTE FUNCTION check_appointment_overlap();
 
 | № | Сценарий | Участники | Поток |
 |---|----------|-----------|-------|
-| 1 | **Создание приёма (Настя)** | admin | Выбирает слот в календаре → (опционально) выбирает **шаблон приёма** → поля заполняются → `insert appointments` → триггер пишет в `wa_outbox`. |
-| 2 | **Запись сотрудником клиники** | clinic_staff | В календаре своей клиники выбирает слот → `insert appointments` (private=false, patient_id=NULL, short_label). |
+| 1 | **Создание приёма (Настя)** | admin | Выбирает слот в календаре → выбирает пациента и процедуру → поля "длительность" и "стоимость" заполняются автоматически → `insert appointments` → триггер пишет в `wa_outbox`. |
+| 2 | **Запись сотрудником клиники** | clinic_staff | В календаре своей клиники выбирает слот → `insert appointments` (send_notifications=false, patient_id=NULL, short_label). |
 | 3 | **Завершение приёма** | admin | Заполняет `tooth_num`, `procedure_id`, `description`, `cost` → `update status = completed`. |
 | 4 | **Отмена** | admin / staff | `update status = canceled`; триггер → WA «Отменено». |
 | 5 | **Напоминания –1 день** | системный cron | `pg_cron` ежедневно в 10:00 вызывает edge-функцию, которая формирует сообщения в `wa_outbox`. |
@@ -268,9 +265,9 @@ FOR EACH ROW EXECUTE FUNCTION check_appointment_overlap();
     ('Smile More Clinic', '#3498db'),
     ('Dudko Dental Clinic', '#e74c3c');
 
-    INSERT INTO public.procedures_catalog (name, color_hex) VALUES
-    ('Консультация', '#f1c40f'),
-    ('Гигиена', '#1abc9c');
+    INSERT INTO public.procedures_catalog (name, color_hex, default_duration_min, default_cost) VALUES
+    ('Консультация', '#f1c40f', 30, 150),
+    ('Гигиена', '#1abc9c', 60, 300);
     
     -- ... и так далее для других таблиц
     ```
@@ -281,21 +278,13 @@ FOR EACH ROW EXECUTE FUNCTION check_appointment_overlap();
 
 ### MVP
 - [ ] **Auth & Roles:** Настройка аутентификации через Google, создание ролей `admin` и `clinic_staff`, полная реализация RLS-политик.
-- [ ] **CRUD-интерфейсы (Mobile-First):**
-    - [ ] Управление клиниками (`clinics`).
-    - [ ] Управление каталогом процедур (`procedures_catalog`).
-    - [ ] Управление пациентами (`patients`).
-    - [ ] **Управление шаблонами сообщений WhatsApp (`wa_templates`) с UI-редактором (RU/IL).**
-- [ ] **Основной функционал (Mobile-First):**
-    - [ ] Календарь (day/week/month) с **недельным видом по умолчанию**.
-    - [ ] Реализация триггера для проверки пересечений приёмов.
-    - [ ] **Полная реализация автоматизации WhatsApp с Twilio** (сценарии 1, 4, 5, 6).
-      - [ ] Экспорт расписания в Excel (может быть доступен только в десктопной версии).
-- [ ] **PWA & Deploy:** Настройка PWA, деплой на Vercel
+- [ ] **CRUD-интерфейсы (Mobile-First):** (Выполнено)
+- [ ] **Основной функционал (Mobile-First):** (Частично выполнено)
+- [ ] **PWA & Deploy:** (Не начато)
 
 ### Post-MVP (v1.1 и далее)
-- [ ] **Загрузка файлов:** Реализация загрузки файлов пациентов в Supabase Storage с использованием URL-трансформаций для предпросмотра.
-- [ ] **интеграция Hotjar**.
+- [ ] **Загрузка файлов:** Реализация загрузки файлов пациентов в Supabase Storage.
+- [ ] **Интеграция Hotjar**.
 - [ ] **Аналитика:** UI для просмотра встроенного лога аудита Supabase, дашборды с аналитикой.
 - [ ] **Расширение функционала:**
     - [ ] Внедрение роли `assistant`.
