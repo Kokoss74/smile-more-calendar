@@ -11,6 +11,7 @@ import {
   Box,
   IconButton,
   Typography,
+  Grid,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,14 +32,24 @@ export default function ProcedureFormDialog({ open, onClose, onSubmit, defaultVa
     formState: { errors },
     reset,
     setValue,
-  } = useForm<ProcedureFormData>({
+  } = useForm({
     resolver: zodResolver(procedureSchema),
-    defaultValues: defaultValues || { name: '', color_hex: COLOR_PALETTE[0] },
+    defaultValues: defaultValues || { 
+      name: '', 
+      color_hex: COLOR_PALETTE[0],
+      default_duration_min: null,
+      default_cost: null,
+    },
   });
 
   React.useEffect(() => {
     if (open) {
-      reset(defaultValues || { name: '', color_hex: COLOR_PALETTE[0] });
+      reset(defaultValues || { 
+        name: '', 
+        color_hex: COLOR_PALETTE[0],
+        default_duration_min: null,
+        default_cost: null,
+      });
     }
   }, [open, defaultValues, reset]);
 
@@ -51,26 +62,66 @@ export default function ProcedureFormDialog({ open, onClose, onSubmit, defaultVa
       <DialogTitle>{defaultValues ? 'Edit Procedure' : 'Add New Procedure'}</DialogTitle>
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <DialogContent>
-          <Controller
-            name="name"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                autoFocus
-                margin="dense"
-                label="Procedure Name"
-                type="text"
-                fullWidth
-                variant="outlined"
-                error={!!errors.name}
-                helperText={errors.name?.message}
+          <Grid container spacing={2} sx={{ pt: 1 }}>
+            <Grid size={{ xs: 12 }}>
+              <Controller
+                name="name"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    autoFocus
+                    label="Procedure Name"
+                    type="text"
+                    fullWidth
+                    variant="outlined"
+                    error={!!errors.name}
+                    helperText={errors.name?.message}
+                  />
+                )}
               />
-            )}
-          />
-          <Box mt={2}>
-            <Controller
-              name="color_hex"
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Controller
+                name="default_duration_min"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Default Duration (min)"
+                    type="number"
+                    fullWidth
+                    variant="outlined"
+                    error={!!errors.default_duration_min}
+                    helperText={errors.default_duration_min?.message}
+                    onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                    value={field.value ?? ''}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Controller
+                name="default_cost"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Default Cost"
+                    type="number"
+                    fullWidth
+                    variant="outlined"
+                    error={!!errors.default_cost}
+                    helperText={errors.default_cost?.message}
+                    onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                    value={field.value ?? ''}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Controller
+                name="color_hex"
               control={control}
               render={({ field }) => (
                 <Box>
@@ -101,7 +152,8 @@ export default function ProcedureFormDialog({ open, onClose, onSubmit, defaultVa
                 </Box>
               )}
             />
-          </Box>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
