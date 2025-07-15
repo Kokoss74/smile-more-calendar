@@ -19,6 +19,7 @@ import {
   Divider,
   FormControl,
   Switch,
+  Autocomplete,
 } from '@mui/material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { setHours, parseISO } from 'date-fns';
@@ -54,7 +55,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
   const isEditMode = !!appointment;
   const { profile } = useSessionStore();
 
-  const { data: patients, isLoading: isLoadingPatients } = usePatients({ sortBy: 'created_at', isDispensary: null });
+  const { data: patients, isLoading: isLoadingPatients } = usePatients({ sortBy: 'last_name', sortDirection: 'asc', isDispensary: null });
   const { data: procedures, isLoading: isLoadingProcedures } = useProcedures();
   const { data: clinics, isLoading: isLoadingClinics } = useClinics();
 
@@ -293,16 +294,39 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                     name="patient_id"
                     control={control}
                     render={({ field }) => (
-                      <TextField {...field} select label="Patient" fullWidth required error={!!errors.patient_id} helperText={errors.patient_id?.message}>
-                        {patients?.map((p) => (
-                          <MenuItem key={p.id} value={p.id}>{`${p.first_name} ${p.last_name}`}</MenuItem>
-                        ))}
-                        <Divider />
-                        <MenuItem onClick={() => setPatientDialogOpen(true)}>
-                          <AddCircleOutlineIcon sx={{ mr: 1 }} />
-                          Add New Patient
-                        </MenuItem>
-                      </TextField>
+                      <Autocomplete
+                        options={patients || []}
+                        getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
+                        value={patients?.find(p => p.id === field.value) || null}
+                        onChange={(_, newValue) => {
+                          field.onChange(newValue ? newValue.id : '');
+                        }}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Patient"
+                            required
+                            error={!!errors.patient_id}
+                            helperText={errors.patient_id?.message}
+                          />
+                        )}
+                        renderOption={(props, option) => (
+                          <li {...props} key={option.id}>
+                            {`${option.first_name} ${option.last_name}`}
+                          </li>
+                        )}
+                        ListboxComponent={(props) => (
+                          <ul {...props}>
+                            {props.children}
+                            <Divider />
+                            <MenuItem onClick={() => setPatientDialogOpen(true)}>
+                              <AddCircleOutlineIcon sx={{ mr: 1 }} />
+                              Add New Patient
+                            </MenuItem>
+                          </ul>
+                        )}
+                      />
                     )}
                   />
                 </Grid>
