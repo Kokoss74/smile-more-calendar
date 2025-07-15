@@ -4,11 +4,12 @@ INSERT INTO public.clinics (name, color_hex) VALUES
 ('Dudko Dental Clinic', '#e74c3c');
 
 -- Seed data for the 'procedures_catalog' table
-INSERT INTO public.procedures_catalog (name, color_hex) VALUES
-('Консультация', '#f1c40f'),
-('Гигиена', '#1abc9c'),
-('Лечение кариеса', '#9b59b6'),
-('Лечение корневого канала', '#e67e22');
+-- Added default_duration_min and default_cost to align with Phase 3.2 refactoring.
+INSERT INTO public.procedures_catalog (name, color_hex, default_duration_min, default_cost) VALUES
+('Консультация', '#f1c40f', 30, 150.00),
+('Гигиена', '#1abc9c', 60, 450.00),
+('Лечение кариеса', '#9b59b6', 90, 800.00),
+('Лечение корневого канала', '#e67e22', 120, 1500.00);
 
 -- Seed data for the 'wa_templates' table
 INSERT INTO public.wa_templates (code, body_ru, body_il) VALUES

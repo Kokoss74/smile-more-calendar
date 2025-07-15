@@ -13,7 +13,7 @@ ADD COLUMN IF NOT EXISTS default_cost numeric(10,2);
 -- 3. Modify the patients table:
 -- 3.1. Rename 'age' to 'patient_type' to better reflect the new classification.
 ALTER TABLE public.patients
-RENAME COLUMN IF EXISTS age TO patient_type;
+RENAME COLUMN age TO patient_type;
 
 -- 3.2. Ensure the new column has the correct type.
 ALTER TABLE public.patients
@@ -25,7 +25,7 @@ ADD COLUMN IF NOT EXISTS notification_language_is_hebrew boolean DEFAULT false;
 
 -- 4. Rename 'private' to 'send_notifications' in the appointments table for clarity.
 ALTER TABLE public.appointments
-RENAME COLUMN IF EXISTS private TO send_notifications;
+RENAME COLUMN private TO send_notifications;
 
 -- 5. Update the RLS policy for clinic_staff to reflect the column rename from 'private' to 'send_notifications'.
 -- This is crucial to ensure staff members can still create appointments under the new schema.
