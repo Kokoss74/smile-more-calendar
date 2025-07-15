@@ -29,7 +29,7 @@ interface RpcAppointment {
   procedure_color: string | null;
 }
 
-export const useAppointments = (startDate: Date, endDate: Date) => {
+export const useAppointments = (startDate?: Date, endDate?: Date) => {
   const { profile } = useSessionStore();
 
   return useQuery<AppointmentWithRelations[], Error>({

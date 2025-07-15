@@ -22,7 +22,8 @@ import {
 } from '@/config/constants';
 
 const Calendar: React.FC = () => {
-  const { data: appointments, isLoading, isError, error } = useAppointments();
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date } | null>(null);
+  const { data: appointments, isLoading, isError, error } = useAppointments(dateRange?.start, dateRange?.end);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date } | undefined>(undefined);
@@ -182,6 +183,9 @@ const Calendar: React.FC = () => {
         allDaySlot={false}
         select={handleDateSelect}
         eventClick={handleEventClick}
+        datesSet={(arg) => {
+          setDateRange({ start: arg.start, end: arg.end });
+        }}
       />
       <AppointmentFormDialog
         open={dialogOpen}
