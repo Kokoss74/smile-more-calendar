@@ -192,8 +192,9 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
         await addAppointmentMutation.mutateAsync(submissionData);
       }
       onClose();
-    } catch (error: any) {
-        if (error?.message?.includes('timeslot_is_already_booked')) {
+    } catch (error) {
+        const errorMessage = (error as Error)?.message;
+        if (errorMessage?.includes('timeslot_is_already_booked')) {
             setErrorSnackbar('This time slot is already booked. Please choose a different time.');
         } else {
             setErrorSnackbar('Failed to save the appointment. Please try again.');
@@ -310,7 +311,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
           <Box display="flex" justifyContent="space-between" alignItems="center">
             {isEditMode ? (status === 'blocked' ? 'Edit Blocked Time' : 'Edit Appointment') : 'New Appointment'}
             {isEditMode && (
-              <IconButton onClick={handleDelete} disabled={isSubmitting}>
+              <IconButton onClick={handleDelete} disabled={isSubmitting || status === 'completed'}>
                 <DeleteIcon />
               </IconButton>
             )}
@@ -337,6 +338,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                                 value={clinic.id}
                                 control={<Radio />}
                                 label={clinic.name}
+                                disabled={status === 'completed'}
                               />
                             ))}
                           </RadioGroup>
@@ -387,7 +389,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                           format="dd/MM/yyyy"
                           disablePast
                           slotProps={{ textField: { fullWidth: true } }}
-                          disabled={isAllDay}
+                          disabled={isAllDay || status === 'completed'}
                         />
                       )}
                     />
@@ -405,7 +407,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                           minTime={setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.startTime.split(':')[0], 10))}
                           maxTime={setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.endTime.split(':')[0], 10))}
                           slotProps={{ textField: { fullWidth: true, error: !!errors.start_ts, helperText: errors.start_ts?.message } }}
-                          disabled={isAllDay}
+                          disabled={isAllDay || status === 'completed'}
                         />
                       )}
                     />
@@ -424,7 +426,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                           minTime={startTs ? parseISO(startTs) : setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.startTime.split(':')[0], 10))}
                           maxTime={setHours(new Date(0), parseInt(CALENDAR_BUSINESS_HOURS.endTime.split(':')[0], 10))}
                           slotProps={{ textField: { fullWidth: true, error: !!errors.end_ts, helperText: errors.end_ts?.message } }}
-                          disabled={isAllDay}
+                          disabled={isAllDay || status === 'completed'}
                         />
                       )}
                     />
@@ -437,6 +439,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                       fullWidth
                       error={!!errors.end_ts}
                       helperText={errors.end_ts ? 'Invalid duration' : ''}
+                      disabled={status === 'completed'}
                     >
                       {DURATION_OPTIONS.map(option => (
                         <MenuItem key={option.value} value={option.value}>
@@ -455,6 +458,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                         control={control}
                         render={({ field }) => (
                           <Autocomplete
+                            disabled={status === 'completed'}
                             options={patients || []}
                             getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
                             value={patients?.find(p => p.id === field.value) || null}
@@ -495,7 +499,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                         name="procedure_id"
                         control={control}
                         render={({ field }) => (
-                          <TextField {...field} select label="Procedure" fullWidth required error={!!errors.procedure_id} helperText={errors.procedure_id?.message}>
+                          <TextField {...field} select label="Procedure" fullWidth required error={!!errors.procedure_id} helperText={errors.procedure_id?.message} disabled={status === 'completed'}>
                             {procedures?.map((p) => (
                               <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                             ))}
@@ -513,7 +517,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                         name="short_label"
                         control={control}
                         render={({ field }) => (
-                          <TextField {...field} label="Short Label (Optional)" fullWidth error={!!errors.short_label} helperText={errors.short_label?.message} />
+                          <TextField {...field} label="Short Label (Optional)" fullWidth error={!!errors.short_label} helperText={errors.short_label?.message} disabled={status === 'completed'} />
                         )}
                       />
                     </Grid>
@@ -522,7 +526,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                         name="tooth_num"
                         control={control}
                         render={({ field }) => (
-                          <TextField {...field} label="Tooth #" fullWidth error={!!errors.tooth_num} helperText={errors.tooth_num?.message} />
+                          <TextField {...field} label="Tooth #" fullWidth error={!!errors.tooth_num} helperText={errors.tooth_num?.message} disabled={status === 'completed'} />
                         )}
                       />
                     </Grid>
@@ -549,6 +553,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                             helperText={errors.cost?.message}
                             InputLabelProps={{ shrink: !!field.value || field.value === 0 }}
                             value={field.value ?? ''}
+                            disabled={status === 'completed'}
                           />
                         )}
                       />
@@ -560,7 +565,7 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
                             name="send_notifications"
                             control={control}
                             render={({ field }) => (
-                              <Switch {...field} checked={field.value} />
+                              <Switch {...field} checked={field.value} disabled={status === 'completed'} />
                             )}
                           />
                         }
@@ -584,13 +589,28 @@ const AppointmentFormDialog: React.FC<AppointmentFormDialogProps> = ({
 
                 {isEditMode && !(isBlockMode || status === 'blocked') && (
                   <Grid size={{ xs: 12 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={status === 'completed'}
+                          onChange={(e) => {
+                            setValue('status', e.target.checked ? 'completed' : 'scheduled', { shouldValidate: true });
+                          }}
+                        />
+                      }
+                      label="Mark as Completed"
+                    />
+                  </Grid>
+                )}
+
+                {isEditMode && status !== 'completed' && !(isBlockMode || status === 'blocked') && (
+                  <Grid size={{ xs: 12 }}>
                      <Controller
                         name="status"
                         control={control}
                         render={({ field }) => (
                           <RadioGroup {...field} row>
                             <FormControlLabel value="scheduled" control={<Radio />} label="Scheduled" />
-                            <FormControlLabel value="completed" control={<Radio />} label="Completed" />
                             <FormControlLabel value="canceled" control={<Radio />} label="Canceled" />
                           </RadioGroup>
                         )}
