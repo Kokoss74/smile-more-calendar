@@ -4,11 +4,14 @@ import { AppointmentWithRelations } from '@/types';
 
 const supabase = createClient();
 
-// Расширим тип, чтобы включить имя процедуры
-type AppointmentHistoryEntry = Pick<AppointmentWithRelations, 'id' | 'start_ts' | 'status'> & {
+// Расширим тип, чтобы включить все необходимые поля для истории
+export type AppointmentHistoryEntry = Pick<
+  AppointmentWithRelations,
+  'id' | 'start_ts' | 'status' | 'tooth_num' | 'cost' | 'description'
+> & {
   procedures_catalog: {
     name: string;
-  } | null; // Supabase может вернуть null, если связи нет
+  } | null;
 };
 
 const fetchPatientAppointments = async (patientId: string): Promise<AppointmentHistoryEntry[]> => {
@@ -18,6 +21,9 @@ const fetchPatientAppointments = async (patientId: string): Promise<AppointmentH
       id,
       start_ts,
       status,
+      tooth_num,
+      cost,
+      description,
       procedures_catalog ( name )
     `)
     .eq('patient_id', patientId)

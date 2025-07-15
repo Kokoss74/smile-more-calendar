@@ -29,6 +29,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { PatientFormData, patientSchema } from '@/types';
 import { PATIENT_TYPES } from '@/config/constants';
+import { AppointmentHistoryEntry } from '@/hooks/usePatientAppointments';
 
 interface PatientFormDialogProps {
   open: boolean;
@@ -40,6 +41,15 @@ interface PatientFormDialogProps {
 export default function PatientFormDialog({ open, onClose, onSubmit, defaultValues }: PatientFormDialogProps) {
   const patientId = defaultValues?.id;
   const { data: appointments, isLoading: isLoadingAppointments } = usePatientAppointments(patientId);
+  const [selectedAppointment, setSelectedAppointment] = React.useState<AppointmentHistoryEntry | null>(null);
+
+  const handleViewAppointment = (appointment: AppointmentHistoryEntry) => {
+    setSelectedAppointment(appointment);
+  };
+
+  const handleCloseAppointmentView = () => {
+    setSelectedAppointment(null);
+  };
 
   const {
     control,
@@ -219,23 +229,26 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
                       <TableRow>
                         <TableCell>Date</TableCell>
                         <TableCell>Procedure</TableCell>
-                        <TableCell>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {appointments && appointments.length > 0 ? (
                         appointments.map((app) => (
-                          <TableRow key={app.id}>
+                          <TableRow
+                            key={app.id}
+                            hover
+                            onClick={() => handleViewAppointment(app)}
+                            style={{ cursor: 'pointer' }}
+                          >
                             <TableCell>
                               {format(new Date(app.start_ts), 'dd/MM/yyyy')}
                             </TableCell>
                             <TableCell>{app.procedures_catalog?.name || 'N/A'}</TableCell>
-                            <TableCell>{app.status}</TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={3} align="center">
+                          <TableCell colSpan={2} align="center">
                             No appointments found.
                           </TableCell>
                         </TableRow>
@@ -252,6 +265,22 @@ export default function PatientFormDialog({ open, onClose, onSubmit, defaultValu
           <Button type="submit">Save</Button>
         </DialogActions>
       </form>
+
+      {selectedAppointment && (
+        <Dialog open={!!selectedAppointment} onClose={handleCloseAppointmentView} maxWidth="sm" fullWidth>
+          <DialogTitle>Appointment Details</DialogTitle>
+          <DialogContent>
+            <Typography variant="body1"><strong>Date:</strong> {format(new Date(selectedAppointment.start_ts), 'dd/MM/yyyy HH:mm')}</Typography>
+            <Typography variant="body1"><strong>Procedure:</strong> {selectedAppointment.procedures_catalog?.name || 'N/A'}</Typography>
+            <Typography variant="body1"><strong>Cost:</strong> {selectedAppointment.cost || 'N/A'}</Typography>
+            <Typography variant="body1"><strong>Tooth Number:</strong> {selectedAppointment.tooth_num || 'N/A'}</Typography>
+            <Typography variant="body1"><strong>Description:</strong> {selectedAppointment.description || 'N/A'}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseAppointmentView}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
