@@ -16,6 +16,8 @@ export default function RootLayout({
     <html lang="ru">
       <head>
         <link rel="manifest" href="/manifest.json" />
+        {/* 180x180 */}
+        {/* <link rel="apple-touch-icon" href="/zub.png"></link> */}
       </head>
       <body>
         <ThemeRegistry>{children}</ThemeRegistry>
