@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button, Box, Typography } from '@mui/material'
 import { useRouter } from 'next/navigation'
 import { useSessionStore } from '@/store/sessionStore'
+import { getURL } from '@/lib/utils'
 
 export default function AuthButton() {
   const router = useRouter()
@@ -14,7 +15,7 @@ export default function AuthButton() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        redirectTo: `${getURL()}auth/callback`,
       },
     })
   }
