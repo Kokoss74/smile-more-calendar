@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   }
 
   if (code) {
+    console.log('Received authorization code:', code);
     const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +33,9 @@ export async function GET(request: Request) {
       }
     )
     const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      console.error('Error exchanging code for session:', error);
+    }
     if (!error) {
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
       const isLocalEnv = process.env.NODE_ENV === 'development'
