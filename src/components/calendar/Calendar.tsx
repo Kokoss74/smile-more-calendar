@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
+import interactionPlugin, { DateClickArg } from '@fullcalendar/interaction';
 import { Box, CircularProgress, Typography, Snackbar, Alert } from '@mui/material';
 import { EventInput, EventClickArg, DateSelectArg } from '@fullcalendar/core';
 import { AppointmentWithRelations } from '@/types';
@@ -40,30 +40,46 @@ const Calendar: React.FC = () => {
     }
   }, [fetchedAppointments]);
 
-  const handleDateSelect = (selectInfo: DateSelectArg) => {
-    const { start, end, view } = selectInfo;
+  const handleSlotSelect = (start: Date, end: Date, unselect?: () => void) => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
     if (start < now) {
       setSnackbar({ open: true, message: "Cannot select a past date.", severity: 'warning' });
-      view.calendar.unselect();
+      unselect?.();
       return;
     }
 
-    const isOverlapping = localAppointments?.some(app => 
+    const isOverlapping = localAppointments?.some(app =>
       app.status !== 'canceled' && (start < new Date(app.end_ts) && end > new Date(app.start_ts))
     );
 
     if (isOverlapping) {
       setSnackbar({ open: true, message: "This time slot is already booked.", severity: 'warning' });
-      view.calendar.unselect();
+      unselect?.();
       return;
     }
 
     setSelectedSlot({ start, end });
     setSelectedAppointment(null);
     setDialogOpen(true);
+  };
+
+  const handleDateSelect = (selectInfo: DateSelectArg) => {
+    handleSlotSelect(selectInfo.start, selectInfo.end, selectInfo.view.calendar.unselect);
+  };
+
+  const handleDateClick = (clickInfo: DateClickArg) => {
+    const { date, view } = clickInfo;
+    // Only handle clicks in time grid views to allow creating appointments by tapping a slot
+    if (view.type !== 'timeGridWeek' && view.type !== 'timeGridDay') {
+      return;
+    }
+    const slotDurationStr = view.calendar.getOption('slotDuration') as string || '00:30:00';
+    const [hours, minutes, seconds] = slotDurationStr.split(':').map(Number);
+    const durationMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
+    const end = new Date(date.getTime() + durationMs);
+    handleSlotSelect(date, end);
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
@@ -217,6 +233,7 @@ const Calendar: React.FC = () => {
         allDaySlot={false}
         select={handleDateSelect}
         eventClick={handleEventClick}
+        dateClick={handleDateClick}
         datesSet={(arg) => {
           if (dateRange?.start?.getTime() !== arg.start.getTime() || dateRange?.end?.getTime() !== arg.end.getTime()) {
             setDateRange({ start: arg.start, end: arg.end });

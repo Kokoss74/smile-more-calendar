@@ -86,7 +86,7 @@ export default function AppShell({ children }: AppShellProps) {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Smile More Calendar
+            Smile More
           </Typography>
           {/* AuthButton now gets user data from the Zustand store */}
           <AuthButton />

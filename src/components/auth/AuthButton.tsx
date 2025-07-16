@@ -28,8 +28,8 @@ export default function AuthButton() {
 
   return user ? (
     <Box display="flex" alignItems="center" gap={2}>
-      <Typography variant="body1">Hi, {user.email}</Typography>
-      <Button variant="outlined" onClick={handleLogout}>
+      <Typography variant="body1">{user.user_metadata.name}</Typography>
+      <Button variant="contained" onClick={handleLogout}>
         Logout
       </Button>
     </Box>
